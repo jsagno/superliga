@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache
+.cache/
+*.cache
+.parcel-cache/
+packages/cron/cache/
+
+# Build outputs
+packages/liga-admin/dist/
+packages/liga-admin/build/
+packages/*/dist/
+packages/*/build/
+
+# Testing
+coverage/
+.nyc_output/
+*.coverage
+htmlcov/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.temp
+.temp/
+.tmp/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Project specific
+response_*.json
+tablas.sql
+Screens/
+Screens.zip

@@ -1,0 +1,24 @@
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch feature/refactor-arquitectura-base
+# Changes to be committed:
+#	new file:   cron/docs/MEJORAS_SUGERIDAS.md
+#	modified:   cron/docs/TECHNICAL_ARCHITECTURE.md
+#	new file:   docs/REGALAMENTO.md
+#	modified:   liga-admin/.github/copilot-instructions.md
+#	modified:   liga-admin/README.md
+#	modified:   liga-admin/docs/TECHNICAL_ARCHITECTURE.md
+#	renamed:    .github/WORKFLOW.md -> liga-admin/docs/WORKFLOW.md
+#	modified:   liga-admin/package.json
+#	new file:   liga-admin/src/hooks/usePlayers.jsx
+#	new file:   liga-admin/src/hooks/usePlayers.test.js
+#	modified:   liga-admin/src/pages/admin/SeasonCupModes.jsx
+#	modified:   liga-admin/src/pages/admin/SeasonDailyPoints.jsx
+#	new file:   liga-admin/src/services/playersService.jsx
+#	new file:   liga-admin/src/services/playersService.test.js
+#	modified:   liga-admin/test-results/.last-run.json
+#	new file:   liga-admin/tests/e2e/helpers.js
+#	new file:   liga-admin/tests/e2e/players-list.spec.js
+#
