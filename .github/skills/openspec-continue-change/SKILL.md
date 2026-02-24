@@ -17,7 +17,7 @@ Continue working on a change by creating the next artifact.
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+    Run `openspec list --json` to get available changes sorted by most recently modified. Then use the `ask_questions` tool to let the user select which change to work on.
 
    Present the top 3-4 most recently modified changes as options, showing:
    - Change name
@@ -27,7 +27,7 @@ Continue working on a change by creating the next artifact.
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+    Do not guess or auto-select a change. Let the user choose.
 
 2. **Check current status**
    ```bash
@@ -65,6 +65,7 @@ Continue working on a change by creating the next artifact.
      - `dependencies`: Completed artifacts to read for context
    - **Create the artifact file**:
      - Read any completed dependency files for context
+     - Draft content with the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) using the artifact `instruction`, `template`, `context`, and `rules`
      - Use `template` as the structure - fill in its sections
      - Apply `context` and `rules` as constraints when writing - but do NOT copy them into the file
      - Write to the output path specified in instructions
@@ -108,7 +109,8 @@ For other schemas, follow the `instruction` field from the CLI output.
 
 **Guardrails**
 - Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
+- Read dependency artifacts before creating a new one
+- Prefer `PromptExpert` for artifact draft quality when generating user-facing/spec text
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress

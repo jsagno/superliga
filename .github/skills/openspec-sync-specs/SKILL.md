@@ -19,15 +19,15 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run `openspec list --json` to get available changes. Use the `ask_questions` tool to let the user select.
 
    Show changes that have delta specs (under `specs/` directory).
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Do not guess or auto-select a change. Let the user choose.
 
 2. **Find delta specs**
 
-   Look for delta spec files in `openspec/changes/<name>/specs/*/spec.md`.
+   Look for delta spec files in `docs/openspec/changes/<name>/specs/*/spec.md`.
 
    Each delta spec file contains sections like:
    - `## ADDED Requirements` - New requirements to add
@@ -39,11 +39,11 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 3. **For each delta spec, apply changes to main specs**
 
-   For each capability with a delta spec at `openspec/changes/<name>/specs/<capability>/spec.md`:
+   For each capability with a delta spec at `docs/openspec/changes/<name>/specs/<capability>/spec.md`:
 
    a. **Read the delta spec** to understand the intended changes
 
-   b. **Read the main spec** at `openspec/specs/<capability>/spec.md` (may not exist yet)
+   b. **Read the main spec** at `docs/openspec/specs/<capability>/spec.md` (may not exist yet)
 
    c. **Apply changes intelligently**:
 
@@ -66,7 +66,7 @@ This is an **agent-driven** operation - you will read delta specs and directly e
       - Find the FROM requirement, rename to TO
 
    d. **Create new main spec** if capability doesn't exist yet:
-      - Create `openspec/specs/<capability>/spec.md`
+      - Create `docs/openspec/specs/<capability>/spec.md`
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 

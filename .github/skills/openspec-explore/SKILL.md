@@ -11,7 +11,7 @@ metadata:
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first (e.g., start a change with `/opsx:new` or `/opsx:ff`). You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+**Important: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must never write code or implement features. If the user asks you to implement something, remind them to exit explore mode first (e.g., start a change with `/opsx:new` or `/opsx:ff`). You may create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -104,9 +104,9 @@ Think freely. When insights crystallize, you might offer:
 If the user mentions a change or you detect one is relevant:
 
 1. **Read existing artifacts for context**
-   - `openspec/changes/<name>/proposal.md`
-   - `openspec/changes/<name>/design.md`
-   - `openspec/changes/<name>/tasks.md`
+     - `docs/openspec/changes/<name>/proposal.md`
+     - `docs/openspec/changes/<name>/design.md`
+     - `docs/openspec/changes/<name>/tasks.md`
    - etc.
 
 2. **Reference them naturally in conversation**

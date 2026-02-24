@@ -161,7 +161,7 @@ Now let's create a change to hold our work.
 ```
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in `openspec/changes/<name>/` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in `docs/openspec/changes/<name>/` and holds your artifacts—proposal, specs, design, tasks.
 
 Let me create one for our task.
 ```
@@ -173,11 +173,11 @@ openspec new change "<derived-name>"
 
 **SHOW:**
 ```
-Created: `openspec/changes/<name>/`
+Created: `docs/openspec/changes/<name>/`
 
 The folder structure:
 ```
-openspec/changes/<name>/
+docs/openspec/changes/<name>/
 ├── proposal.md    ← Why we're doing this (empty, we'll fill it)
 ├── design.md      ← How we'll build it (empty)
 ├── specs/         ← Detailed requirements (empty)
@@ -201,6 +201,8 @@ I'll draft one based on our task.
 ```
 
 **DO:** Draft the proposal content (don't save yet):
+
+- First, use the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) to shape a clear, concise proposal draft aligned to the task intent and expected artifact quality.
 
 ```
 Here's a draft proposal:
@@ -239,7 +241,7 @@ After approval, save the proposal:
 ```bash
 openspec instructions proposal --change "<name>" --json
 ```
-Then write the content to `openspec/changes/<name>/proposal.md`.
+Then write the content to `docs/openspec/changes/<name>/proposal.md`.
 
 ```
 Proposal saved. This is your "why" document—you can always come back and refine it as understanding evolves.
@@ -261,11 +263,13 @@ For a small task like this, we might only need one spec file.
 ```
 
 **DO:** Create the spec file:
-```bash
-mkdir -p openspec/changes/<name>/specs/<capability-name>
+```powershell
+New-Item -ItemType Directory -Force -Path docs/openspec/changes/<name>/specs/<capability-name>
 ```
 
 Draft the spec content:
+
+- First, use the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) to turn the capability into precise requirement/scenario language.
 
 ```
 Here's the spec:
@@ -289,7 +293,7 @@ Here's the spec:
 This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
 ```
 
-Save to `openspec/changes/<name>/specs/<capability>/spec.md`.
+Save to `docs/openspec/changes/<name>/specs/<capability>/spec.md`.
 
 ---
 
@@ -305,6 +309,8 @@ For small changes, this might be brief. That's fine—not every change needs dee
 ```
 
 **DO:** Draft design.md:
+
+- First, use the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) to frame decisions, goals, and non-goals clearly.
 
 ```
 Here's the design:
@@ -334,7 +340,7 @@ Here's the design:
 For a small task, this captures the key decisions without over-engineering.
 ```
 
-Save to `openspec/changes/<name>/design.md`.
+Save to `docs/openspec/changes/<name>/design.md`.
 
 ---
 
@@ -350,6 +356,8 @@ These should be small, clear, and in logical order.
 ```
 
 **DO:** Generate tasks based on specs and design:
+
+- First, use the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) to convert requirements/design into actionable, testable tasks.
 
 ```
 Here are the implementation tasks:
@@ -372,7 +380,7 @@ Each checkbox becomes a unit of work in the apply phase. Ready to implement?
 
 **PAUSE** - Wait for user to confirm they're ready to implement.
 
-Save to `openspec/changes/<name>/tasks.md`.
+Save to `docs/openspec/changes/<name>/tasks.md`.
 
 ---
 
@@ -416,7 +424,7 @@ The change is implemented! One more step—let's archive it.
 ```
 ## Archiving
 
-When a change is complete, we archive it. This moves it from `openspec/changes/` to `openspec/changes/archive/YYYY-MM-DD-<name>/`.
+When a change is complete, we archive it. This moves it from `docs/openspec/changes/` to `docs/openspec/changes/archive/YYYY-MM-DD-<name>/`.
 
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 ```
@@ -428,7 +436,7 @@ openspec archive "<name>"
 
 **SHOW:**
 ```
-Archived to: `openspec/changes/archive/YYYY-MM-DD-<name>/`
+Archived to: `docs/openspec/changes/archive/YYYY-MM-DD-<name>/`
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 ```
@@ -483,7 +491,7 @@ Try `/opsx:new` or `/opsx:ff` on something you actually want to build. You've go
 If the user says they need to stop, want to pause, or seem disengaged:
 
 ```
-No problem! Your change is saved at `openspec/changes/<name>/`.
+No problem! Your change is saved at `docs/openspec/changes/<name>/`.
 
 To pick up where we left off later:
 - `/opsx:continue <name>` - Resume artifact creation

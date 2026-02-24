@@ -17,18 +17,18 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
 1. **If no clear input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Use the `ask_questions` tool (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
 
-   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
+   Do not proceed without understanding what the user wants to build.
 
 2. **Create the change directory**
    ```bash
    openspec new change "<name>"
    ```
-   This creates a scaffolded change at `openspec/changes/<name>/`.
+   This creates a scaffolded change at `docs/openspec/changes/<name>/`.
 
 3. **Get the artifact build order**
    ```bash
@@ -40,7 +40,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Use the `manage_todo_list` tool to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
@@ -57,6 +57,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
         - `outputPath`: Where to write the artifact
         - `dependencies`: Completed artifacts to read for context
       - Read any completed dependency files for context
+      - Draft content with the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) using the artifact `instruction`, `template`, `context`, and `rules`
       - Create the artifact file using `template` as the structure
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
@@ -67,7 +68,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
       - Stop when all `applyRequires` artifacts are done
 
    c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
+      - Use `ask_questions` to clarify
       - Then continue with creation
 
 5. **Show final status**
@@ -95,7 +96,8 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
-- Always read dependency artifacts before creating a new one
+- Read dependency artifacts before creating a new one
+- Prefer `PromptExpert` for artifact draft quality when generating user-facing/spec text
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
 - Verify each artifact file exists after writing before proceeding to next

@@ -25,12 +25,12 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 2. **Prompt for change selection**
 
-   Use **AskUserQuestion tool** with multi-select to let user choose changes:
+   Use `ask_questions` with multi-select to let user choose changes:
    - Show each change with its schema
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
-   **IMPORTANT**: Do NOT auto-select. Always let the user choose.
+   Do not auto-select. Let the user choose.
 
 3. **Batch validation - gather status for all selected changes**
 
@@ -40,11 +40,11 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Parse `schemaName` and `artifacts` list
       - Note which artifacts are `done` vs other states
 
-   b. **Task completion** - Read `openspec/changes/<name>/tasks.md`
+   b. **Task completion** - Read `docs/openspec/changes/<name>/tasks.md`
       - Count `- [ ]` (incomplete) vs `- [x]` (complete)
       - If no tasks file exists, note as "No tasks"
 
-   c. **Delta specs** - Check `openspec/changes/<name>/specs/` directory
+   c. **Delta specs** - Check `docs/openspec/changes/<name>/specs/` directory
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
 
@@ -106,7 +106,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 7. **Confirm batch operation**
 
-   Use **AskUserQuestion tool** with a single confirmation:
+   Use `ask_questions` with a single confirmation:
 
    - "Archive N changes?" with options based on status
    - Options might include:
@@ -127,8 +127,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    b. **Perform the archive**:
       ```bash
-      mkdir -p openspec/changes/archive
-      mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+      openspec archive "<name>"
       ```
 
    c. **Track outcome** for each change:
@@ -201,8 +200,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
-- <change-2> -> archive/YYYY-MM-DD-<change-2>/
+- <change-1> -> docs/openspec/changes/archive/YYYY-MM-DD-<change-1>/
+- <change-2> -> docs/openspec/changes/archive/YYYY-MM-DD-<change-2>/
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -215,7 +214,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/YYYY-MM-DD-<change-1>/
+- <change-1> -> docs/openspec/changes/archive/YYYY-MM-DD-<change-1>/
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -234,7 +233,7 @@ No active changes found. Use `/opsx:new` to create a new change.
 
 **Guardrails**
 - Allow any number of changes (1+ is fine, 2+ is the typical use case)
-- Always prompt for selection, never auto-select
+- Prompt for selection; never auto-select
 - Detect spec conflicts early and resolve by checking codebase
 - When both changes are implemented, apply specs in chronological order
 - Skip spec sync only when implementation is missing (warn user)

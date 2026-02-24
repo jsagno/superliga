@@ -17,13 +17,13 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes. Use the **AskUserQuestion tool** to let the user select.
+   Run `openspec list --json` to get available changes. Use the `ask_questions` tool to let the user select.
 
    Show changes that have implementation tasks (tasks artifact exists).
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Do not guess or auto-select a change. Let the user choose.
 
 2. **Check status to understand the schema**
    ```bash
@@ -61,7 +61,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
-   - If delta specs exist in `openspec/changes/<name>/specs/`:
+   - If delta specs exist in `docs/openspec/changes/<name>/specs/`:
      - Extract all requirements (marked with "### Requirement:")
      - For each requirement:
        - Search codebase for keywords related to the requirement
@@ -156,7 +156,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 - If only tasks.md exists: verify task completion only, skip spec/design checks
 - If tasks + specs exist: verify completeness and correctness, skip design
 - If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
+- Note which checks were skipped and why
 
 **Output Format**
 

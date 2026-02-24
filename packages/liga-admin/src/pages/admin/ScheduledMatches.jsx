@@ -646,8 +646,8 @@ async function fetchGroupsForStage(stageId) {
       stage: row.stage || "CUP_QUALY",
       best_of: row.best_of ?? 3,
       expected_team_size: row.expected_team_size ?? 1,
-      player_a_id: row.player_a_id || "",
-      player_b_id: row.player_b_id || "",
+      player_a_id: row.player_a_id?.player_id || row.player_a_id || "",
+      player_b_id: row.player_b_id?.player_id || row.player_b_id || "",
       scheduled_from: toInputValue(row.scheduled_from),
       scheduled_to: toInputValue(row.scheduled_to),
       deadline_at: toInputValue(row.deadline_at),
@@ -666,7 +666,16 @@ async function fetchGroupsForStage(stageId) {
     
     // Load battles data asynchronously
     await loadLinkedBattles(row.scheduled_match_id);
-    await loadAvailableBattles(row.player_a_id?.player_id || row.player_a_id, row.player_b_id?.player_id || row.player_b_id, row.scheduled_from, row.scheduled_to, row.scheduled_match_id, row.stage);
+    await loadAvailableBattles(
+      row.player_a_id?.player_id || row.player_a_id,
+      row.player_b_id?.player_id || row.player_b_id,
+      row.scheduled_from,
+      row.scheduled_to,
+      row.scheduled_match_id,
+      row.stage,
+      row.season_id,
+      row.competition_id
+    );
     
     // Load existing result from scheduled_match_result if exists
     const { data: existingResult } = await supabase
@@ -1001,7 +1010,16 @@ async function fetchGroupsForStage(stageId) {
     setLinkedBattles(enrichedData);
   }
   
-  async function loadAvailableBattles(playerAId, playerBId, fromTime, toTime, scheduledMatchId = null, stage = null) {
+  async function loadAvailableBattles(
+    playerAId,
+    playerBId,
+    fromTime,
+    toTime,
+    scheduledMatchId = null,
+    stage = null,
+    seasonId = null,
+    competitionId = null
+  ) {
     if (!playerAId) {
       setAvailableBattles([]);
       return;
@@ -1086,6 +1104,21 @@ async function fetchGroupsForStage(stageId) {
         return;
       }
       
+      // Resolve expected game mode from competition config (stage is tournament stage, not api_game_mode)
+      let expectedGameMode = null;
+      if (seasonId && competitionId && stage) {
+        const { data: modeConfig, error: modeConfigError } = await supabase
+          .from("season_competition_config")
+          .select("api_game_mode")
+          .eq("season_id", seasonId)
+          .eq("competition_id", competitionId)
+          .eq("stage", stage)
+          .maybeSingle();
+
+        if (modeConfigError) throw modeConfigError;
+        expectedGameMode = modeConfig?.api_game_mode || null;
+      }
+
       // Get battle details with time filter
       let battleQuery = supabase
         .from("battle")
@@ -1093,9 +1126,8 @@ async function fetchGroupsForStage(stageId) {
         .in("battle_id", battleIds)
         .order("battle_time", { ascending: false });
       
-      // Filter by game mode based on stage
-      if (stage) {
-        battleQuery = battleQuery.eq("api_game_mode", stage);
+      if (expectedGameMode) {
+        battleQuery = battleQuery.eq("api_game_mode", expectedGameMode);
       }
       
       if (fromISO) battleQuery = battleQuery.gte("battle_time", fromISO);
@@ -1273,7 +1305,16 @@ async function fetchGroupsForStage(stageId) {
     await loadLinkedBattles(form.scheduled_match_id);
     
     // Reload available battles to include this one again
-    await loadAvailableBattles(form.player_a_id, form.player_b_id, form.scheduled_from, form.scheduled_to, form.scheduled_match_id, form.stage);
+    await loadAvailableBattles(
+      form.player_a_id,
+      form.player_b_id,
+      form.scheduled_from,
+      form.scheduled_to,
+      form.scheduled_match_id,
+      form.stage,
+      form.season_id,
+      form.competition_id
+    );
   }
   
   async function setManualResultForMatch() {

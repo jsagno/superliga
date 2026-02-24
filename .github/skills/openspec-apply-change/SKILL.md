@@ -19,10 +19,11 @@ Implement tasks from an OpenSpec change.
 
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
-   - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
+   - If no explicit single change is identified, run `openspec list --json` to get available changes and use the `ask_questions` tool to let the user select
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
+   Do not auto-select silently. Surface the chosen change and ask when ambiguous.
+
+   Announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
 
 2. **Check status to understand the schema**
    ```bash
@@ -140,7 +141,7 @@ What would you like to do?
 
 **Guardrails**
 - Keep going through tasks until done or blocked
-- Always read context files before starting (from the apply instructions output)
+- Read context files before starting (from apply instructions output)
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task

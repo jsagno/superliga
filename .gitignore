@@ -14,14 +14,18 @@ build/
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.production
 .env.*.local
 *.env
 !.env.example
+!.env.*.example
 
 # IDE
 .vscode/
+.vscode/mcp.json
+.vscode/*.secrets.json
 .idea/
 *.swp
 *.swo

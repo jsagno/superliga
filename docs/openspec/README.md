@@ -7,15 +7,40 @@ Welcome! This is your one-stop resource for understanding Liga Interna's system,
 ```
 openspec/
 ├── README.md (you are here)
+├── MIGRATION-INDEX.md       ← Migration tracking from old structure
 ├── proposal.md              ← WHY we're doing this
 ├── design.md                ← HOW the system works (architecture)
 ├── tasks.md                 ← WHAT needs to be built (tasks & roadmap)
 ├── AGENT_GUIDE.md           ← HOW to use specs (for agents)
-├── specs/
-│   ├── data-models.md       ← Core entities (Player, Clan, Battle, War)
-│   ├── clash-sync-cron.md   ← Backend sync requirements
-│   └── admin-dashboard.md   ← Frontend UI specifications
-└── changes/                 ← Track feature changes here (future)
+├── config.yaml              ← OpenSpec configuration
+│
+├── products/                ← Product definitions
+│   ├── cron.md              ← CRON product (sync service)
+│   └── liga-admin.md        ← LIGA-ADMIN product (React dashboard)
+│
+├── features/                ← Feature specifications
+│   ├── cron/
+│   │   └── battle-sync.md   ← Battle sync index (split into focused files)
+│   └── liga-admin/
+│       └── admin-dashboard.md  ← Dashboard index (split into focused files)
+│
+├── business-rules/          ← Business logic rules
+│   ├── tournament-rules.md  ← Tournament structure & phases
+│   ├── deck-validation.md   ← Card restrictions & deck rules
+│   ├── scoring-system.md    ← Point calculations & rankings
+│   └── player-eligibility.md ← Participation requirements
+│
+├── architecture/            ← Technical architecture
+│   ├── system-overview.md   ← High-level design & data flow
+│   ├── data-model.md        ← DB schema & entities (migrated ✓)
+│   ├── cron-technical-spec.md  ← Python backend architecture (migrated ✓)
+│   └── liga-admin-technical-spec.md  ← React frontend architecture (migrated ✓)
+│
+├── changes/                 ← Feature change tracking (OpenSpec workflow)
+│   └── [change-dirs]        ← Individual change artifacts
+│
+└── specs/                   ← Legacy/process documentation
+    └── git-workflow.md      ← Git branching & PR process
 ```
 
 ## 🎯 Quick Start
@@ -23,32 +48,62 @@ openspec/
 ### For Team Members
 
 1. **Understand the System:**
-   - Read: `/openspec/proposal.md` (2 min) - Why we're using specs
-   - Read: `/openspec/design.md` (10 min) - System overview diagram
+   - Read: [proposal.md](./proposal.md) (2 min) - Why we're using specs
+   - Read: [design.md](./design.md) (10 min) - System overview diagram
+   - Read: [architecture/system-overview.md](./architecture/system-overview.md) - Technical architecture
 
 2. **Before You Code:**
-   - Find your feature in `/openspec/specs/`
-   - Read the requirements (REQ-1, REQ-2, etc.)
-   - Read the scenarios (GIVEN/WHEN/THEN)
-   - Reference related data models
+   - Find your product in [products/](./products/) (cron or liga-admin)
+   - Find your feature in [features/cron/](./features/cron/) or [features/liga-admin/](./features/liga-admin/)
+   - Review relevant [business-rules/](./business-rules/) for domain logic
+   - Reference [architecture/data-model.md](./architecture/data-model.md) for database schema
 
 3. **During Development:**
-   - Add spec citations in code comments
-   - Test against scenarios
-   - Log your work to `/openspec/tasks.md`
+   - Add spec citations in code comments (`// Ref: features/liga-admin/player-rankings.md#REQ-1`)
+   - Follow patterns from [architecture/](./architecture/) technical specs
+   - Test against scenarios (GIVEN/WHEN/THEN)
+   - Log your work to [tasks.md](./tasks.md)
 
 4. **When Done:**
    - Update spec if you found gaps
    - Add test results to tasks.md status
+   - Follow [specs/git-workflow.md](./specs/git-workflow.md) for PR process
 
 ### For AI Agents
 
-1. **Get Context:** Read `/openspec/AGENT_GUIDE.md` (this explains how to use specs)
-2. **Find Your Feature:** Reference the navigation map in AGENT_GUIDE.md
-3. **Read the Spec:** Link citations to `/openspec/specs/*.md`
-4. **Implement:** Code with spec references in comments
-5. **Test:** Run scenario from GIVEN/WHEN/THEN
-6. **Document:** Include spec citations in PR description
+1. **Get Context:** Read [AGENT_GUIDE.md](./AGENT_GUIDE.md) (explains how to use OpenSpec)
+2. **Find Your Product:** Start with [products/](./products/) to understand product boundaries
+3. **Read Feature Specs:** Navigate to [features/](./features/) for requirements (REQ-X format)
+4. **Check Business Rules:** Review [business-rules/](./business-rules/) for domain logic
+5. **Reference Architecture:** Use [architecture/](./architecture/) for technical patterns
+6. **Implement:** Code with spec references in comments
+7. **Test:** Run scenarios from GIVEN/WHEN/THEN
+8. **Document:** Include spec citations in PR description
+
+### Navigation by Role
+
+**Product Manager:**
+- Start: [products/](./products/) → [features/](./features/) → [business-rules/](./business-rules/)
+- Update: Feature specs when requirements change
+- Reference: [MIGRATION-INDEX.md](./MIGRATION-INDEX.md) for migration status
+
+**Backend Developer (CRON):**
+- Start: [products/cron.md](./products/cron.md)
+- Features: [features/cron/](./features/cron/)
+- Architecture: [architecture/cron-technical-spec.md](./architecture/cron-technical-spec.md)
+- Data: [architecture/data-model.md](./architecture/data-model.md)
+
+**Frontend Developer (LIGA-ADMIN):**
+- Start: [products/liga-admin.md](./products/liga-admin.md)
+- Features: [features/liga-admin/](./features/liga-admin/)
+- Architecture: [architecture/liga-admin-technical-spec.md](./architecture/liga-admin-technical-spec.md)
+- UI: [features/liga-admin/admin-dashboard.md](./features/liga-admin/admin-dashboard.md)
+
+**Architect:**
+- Start: [architecture/system-overview.md](./architecture/system-overview.md)
+- Review: All [architecture/](./architecture/) docs
+- Validate: [business-rules/](./business-rules/) for consistency
+- Process: [specs/git-workflow.md](./specs/git-workflow.md)
 
 ## 📚 Core Documents
 
@@ -103,7 +158,7 @@ openspec/
 
 ## 📖 Specification Files
 
-### `specs/data-models.md` - The Data Layer
+### `architecture/data-model.md` - The Data Layer
 **Focus:** What data exists and how it's structured
 
 **Key Sections:**
@@ -118,11 +173,11 @@ openspec/
 **Example:** 
 ```
 "What fields does a Player have?"
-→ Read: /openspec/specs/data-models.md → Player interface
+→ Read: /openspec/architecture/data-model.md → Player interface
 → See exact field names, types, and validation rules
 ```
 
-### `specs/clash-sync-cron.md` - The Data Pipeline
+### `features/cron/battle-sync.md` - The Data Pipeline
 **Focus:** How data flows from Clash API → Supabase
 
 **Key Requirements (REQ-X):**
@@ -144,11 +199,11 @@ openspec/
 **Example:**
 ```
 "How many times should I retry a failed API request?"
-→ Read: /openspec/specs/clash-sync-cron.md → REQ-4
+→ Read: /openspec/features/cron/battle-sync.md → Error Handling
 → See: "Retry up to 5 times with exponential backoff"
 ```
 
-### `specs/admin-dashboard.md` - The User Interface
+### `features/liga-admin/admin-dashboard.md` - The User Interface
 **Focus:** What the frontend displays and how users interact
 
 **Key Requirements (REQ-X):**
@@ -180,7 +235,7 @@ openspec/
 **Example:**
 ```
 "What columns should the player table have?"
-→ Read: /openspec/specs/admin-dashboard.md → REQ-1
+→ Read: /openspec/features/liga-admin/player-rankings.md → Requirements
 → See: Table with Rank, Name, Trophies, Best, Role, Contribution
 → Mobile: hide Best & Contribution columns
 ```
@@ -248,10 +303,10 @@ Scenario: View Clan Standings
 
 ### Q: I need to implement a feature. Where do I start?
 **A:** 
-1. Find your feature name in `/openspec/specs/`
+1. Find your feature name in `/openspec/features/`
 2. Read the REQ-X section
 3. Read the Scenario(s)
-4. Check data models in `/openspec/specs/data-models.md`
+4. Check data models in `/openspec/architecture/data-model.md`
 5. Implement per spec + test against scenario
 
 ### Q: What if the spec doesn't cover my use case?
@@ -261,7 +316,7 @@ Scenario: View Clan Standings
 3. Document decision in code with note:
    ```python
    # NOTE: Spec doesn't cover [case], implementing with [approach]
-   # See /openspec/specs/clash-sync-cron.md
+   # See /openspec/features/cron/battle-sync.md
    ```
 
 ### Q: Can I change the spec if I find a better approach?
@@ -287,9 +342,9 @@ Scenario: View Clan Standings
 
 ### Q: What's the difference between frontend and backend specs?
 **A:**
-- **Backend** (`clash-sync-cron.md`): How data flows, sync logic, error handling
-- **Frontend** (`admin-dashboard.md`): What users see, UI components, interactions
-- **Shared** (`data-models.md`): Data structure both use
+- **Backend** (`features/cron/battle-sync.md`): How data flows, sync logic, error handling
+- **Frontend** (`features/liga-admin/admin-dashboard.md`): What users see, UI components, interactions
+- **Shared** (`architecture/data-model.md`): Data structure both use
 
 ### Q: How do agents help with specs?
 **A:**
@@ -321,12 +376,12 @@ Before claiming a feature is done:
 
 ### Week 1: Backend Setup
 1. Focus: `tasks.md` → Phase 1 (Data Layer & Backend)
-2. Reference: `specs/data-models.md` + `specs/clash-sync-cron.md`
+2. Reference: `architecture/data-model.md` + `features/cron/battle-sync.md`
 3. Build: Database, Clash API client, sync engine
 
 ### Week 2-3: Frontend
 1. Focus: `tasks.md` → Phase 2 (Frontend)
-2. Reference: `specs/admin-dashboard.md` + `design.md`
+2. Reference: `features/liga-admin/admin-dashboard.md` + `design.md`
 3. Build: React components, charts, filters
 
 ### Week 3-4: Testing & Deploy
@@ -365,20 +420,20 @@ This OpenSpec setup is successful when:
 ## 📦 Related Files
 
 **At repo root:**
-- `package.json` - Frontend dependencies
-- `cron/requirements.txt` - Backend dependencies
+- `packages/liga-admin/package.json` - Frontend dependencies
+- `packages/cron/requirements.txt` - Backend dependencies
 - `DEVELOPMENT_BACKLOG.md` - Original roadmap (now in tasks.md)
 
 **Not in openspec/ but important:**
-- `liga-admin/` - React frontend code
-- `cron/` - Python backend code
+- `packages/liga-admin/` - React frontend code
+- `packages/cron/` - Python backend code
 - `docs/` - Additional documentation
 
 ## ✍️ Document Maintenance
 
 **Current Status:** OpenSpec setup complete ✅
 
-**Last Updated:** 2025-02-17
+**Last Updated:** 2026-02-18
 
 **Maintained By:** Team
 
@@ -401,9 +456,9 @@ This OpenSpec setup is successful when:
 - [🏗️ Design](./design.md) - System architecture
 - [✅ Tasks](./tasks.md) - Implementation roadmap
 - [🤖 Agent Guide](./AGENT_GUIDE.md) - How to use specs
-- [📊 Data Models](./specs/data-models.md) - Entities
-- [🔄 Cron Sync](./specs/clash-sync-cron.md) - Backend
-- [🎨 Dashboard](./specs/admin-dashboard.md) - Frontend
+- [📊 Data Models](./architecture/data-model.md) - Entities
+- [🔄 Cron Sync](./features/cron/battle-sync.md) - Backend
+- [🎨 Dashboard](./features/liga-admin/admin-dashboard.md) - Frontend
 
 ---
 

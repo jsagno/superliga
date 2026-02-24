@@ -17,12 +17,12 @@ Start a new change using the experimental artifact-driven approach.
 
 1. **If no clear input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Use the `ask_questions` tool (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
 
-   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
+   Do not proceed without understanding what the user wants to build.
 
 2. **Determine the workflow schema**
 
@@ -39,7 +39,7 @@ Start a new change using the experimental artifact-driven approach.
    openspec new change "<name>"
    ```
    Add `--schema <name>` only if the user requested a specific workflow.
-   This creates a scaffolded change at `openspec/changes/<name>/` with the selected schema.
+   This creates a scaffolded change at `docs/openspec/changes/<name>/` with the selected schema.
 
 4. **Show the artifact status**
    ```bash
@@ -55,6 +55,8 @@ Start a new change using the experimental artifact-driven approach.
    ```
    This outputs the template and context for creating the first artifact.
 
+   Note for the next step (when drafting starts): use the `PromptExpert` agent (`.github/agents/PromptExpert.agent.md`) to produce a high-quality first draft that follows the template, context, and desired output format.
+
 6. **STOP and wait for user direction**
 
 **Output**
@@ -67,8 +69,9 @@ After completing the steps, summarize:
 - Prompt: "Ready to create the first artifact? Just describe what this change is about and I'll draft it, or ask me to continue."
 
 **Guardrails**
-- Do NOT create any artifacts yet - just show the instructions
-- Do NOT advance beyond showing the first artifact template
+- Do not create any artifacts yet - just show the instructions
+- Do not advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
 - Pass --schema if using a non-default workflow
+- When artifact drafting begins in later commands (`/opsx:continue` or `/opsx:ff`), prefer using `PromptExpert` first.
