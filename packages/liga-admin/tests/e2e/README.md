@@ -12,6 +12,15 @@ Este proyecto utiliza [Playwright](https://playwright.dev/) para tests de UI end
 - `npm run test:e2e:ui` — Abre el modo UI de Playwright
 - `npm run test:e2e:serve` — Lanza el build de preview y corre los tests automáticamente
 
+## Variables de entorno para tests autenticados
+
+Algunos tests (por ejemplo, lista de jugadores) requieren credenciales de admin:
+
+- `PLAYWRIGHT_ADMIN_EMAIL`
+- `PLAYWRIGHT_ADMIN_PASSWORD`
+
+Si estas variables no están definidas, los tests autenticados se marcan como `skipped`.
+
 ## Política de desarrollo
 - **Obligatorio:** Cada tarea de desarrollo debe incluir tests de UI relevantes en `tests/e2e/`.
 - Los tests deben cubrir los flujos principales y validaciones de la página/feature modificada.

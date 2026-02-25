@@ -7,7 +7,7 @@
  * @param {string} password
  */
 export async function loginAdmin(page, email, password) {
-  await page.goto('http://localhost:5174/admin/login');
+  await page.goto('/admin/login');
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');

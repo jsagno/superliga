@@ -4,6 +4,6 @@ import { test, expect } from '@playwright/test';
 // Ajusta la URL si tu Vite server corre en otro puerto
 
 test('La página principal carga y muestra el título', async ({ page }) => {
-  await page.goto('http://localhost:5174/');
+  await page.goto('/');
   await expect(page).toHaveTitle(/liga-admin|Liga Admin|React App/i);
 });
