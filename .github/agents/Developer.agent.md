@@ -106,6 +106,25 @@ d:\LigaInterna/
 
 ## Development Workflow
 
+### Required Task Delivery Flow (Developer)
+
+For **every task**, follow this sequence:
+
+1. Create a dedicated branch (`feature/<task-id>-<desc>`, `fix/...`, `refactor/...`, `docs/...`).
+2. Implement only the scoped task changes.
+3. Run local verification (lint/tests/build as applicable).
+4. Run **Playwright MCP** end-to-end checks for all affected features and critical regression paths.
+5. Commit using conventional commits with task reference.
+6. Push branch to origin.
+7. Open a Pull Request with:
+  - scope summary,
+  - test evidence,
+  - **Playwright MCP evidence** (what flows were run and outcome),
+  - documentation impact.
+8. Address Architect review feedback on the same branch and update PR until approved.
+
+Never skip PR creation for task work. Avoid direct commits to `main`.
+
 ### Frontend Development
 ```bash
 cd packages/liga-admin
@@ -115,6 +134,11 @@ npm run build      # Production build
 npm run lint       # Check code quality
 npm run preview    # Preview production build
 ```
+
+Playwright MCP (required for affected UI flows):
+- Execute feature journeys that were changed.
+- Execute at least one adjacent regression journey per impacted area.
+- Record pass/fail evidence in PR description.
 
 ### Backend Development
 ```bash

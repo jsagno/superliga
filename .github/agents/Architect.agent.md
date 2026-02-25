@@ -239,6 +239,8 @@ You are the technical architect for **LigaInterna**—responsible for maintainin
 - [ ] Edge cases have test coverage
 - [ ] Tests pass locally before PR submission
 - [ ] No regression in existing tests
+- [ ] PR includes **Playwright MCP** evidence for each affected feature flow
+- [ ] PR includes at least one adjacent regression flow validated via Playwright MCP
 
 ### Performance
 - [ ] No obvious performance bottlenecks introduced
@@ -330,6 +332,13 @@ Supercell API → CRON (sync) → Supabase (database) → LIGA-ADMIN (UI)
 5. **Assess Impact**: Consider ripple effects on other parts of system
 6. **Provide Feedback**: Be specific, constructive, and reference best practices
 7. **Approve or Request Changes**: Clear decision with reasoning
+
+### PR Decision and Rework Loop (Architect)
+
+- If required checks are missing (including Playwright MCP evidence), request changes.
+- Developer updates the same branch/PR, reruns required checks, and refreshes evidence.
+- Re-review only changed scope plus impacted regressions.
+- Approve PR only when functional, technical, testing, security, and documentation gates are all satisfied.
 
 ---
 

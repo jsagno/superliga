@@ -7,6 +7,7 @@
 ## 📋 Table of Contents
 
 - [Branch Structure](#branch-structure)
+- [Mandatory Delivery Flow](#mandatory-delivery-flow)
 - [Developer → Architect Workflow](#developer--architect-workflow)
 - [Commit Conventions](#commit-conventions)
 - [Code Review Process](#code-review-process)
@@ -51,14 +52,34 @@ docs/<description>
 graph LR
     A[main] --> B[feature/LA-P1-001]
     B --> C[Development]
-    C --> D[Self-Verify]
-    D --> E[Commit + Push]
-    E --> F[Code Review]
-    F --> G{Approved?}
-    G -->|Yes| H[Merge to main]
-    G -->|No| I[Fix Issues]
-    I --> C
+  C --> D[Self-Verify + Playwright MCP]
+  D --> E[Commit + Push]
+  E --> F[Open Pull Request]
+  F --> G[Architect PR Review]
+  G --> H{Approved?}
+  H -->|Yes| I[Merge to main]
+  H -->|No| J[Fix Issues + Update PR]
+  J --> C
 ```
+
+---
+
+## Mandatory Delivery Flow
+
+This flow is required for all task work (feature, fix, refactor, docs):
+
+1. Create one branch per task.
+2. Implement scoped changes only.
+3. Run local checks (lint/tests/build as applicable).
+4. Run Playwright MCP for each affected feature flow and at least one adjacent regression flow.
+5. Commit with conventional commit message and task reference.
+6. Push branch and open Pull Request.
+7. Architect reviews PR against quality/security/performance/documentation checklists.
+8. If changes requested, Developer fixes on same branch, reruns checks (including Playwright MCP), and updates PR.
+9. Architect approves only after all required evidence is present.
+10. Merge PR into `main`.
+
+Direct commits to `main` are not allowed for task delivery.
 
 ---
 
@@ -108,10 +129,15 @@ Select-String -Path src/pages/admin/BattlesHistory.jsx -Pattern "useSupabaseQuer
 # 4. Run linter
 npm run lint
 
-# 5. Test in browser
+# 5. Test in browser (quick manual sanity)
 # - Open http://localhost:5173/admin/battles-history
 # - Verify battles load
 # - etc.
+
+# 6. Run Playwright MCP on affected flows
+# - Validate each changed feature flow
+# - Validate at least one adjacent regression flow
+# - Record evidence for PR description
 ```
 
 **5. Update documentation (if applicable)**
@@ -151,12 +177,22 @@ Verification:
 Related: LA-P1-001"
 ```
 
-**7. Push and notify Architect**
+**7. Push branch and create Pull Request**
 
 ```bash
 git push -u origin feature/LA-P1-001-useSupabaseQuery-hook
 
-# Notify: "Task LA-P1-001 completed, branch ready for review"
+# Create PR to main with:
+# - scope summary
+# - validation commands/results
+# - Playwright MCP evidence
+# - docs updated
+```
+
+**8. Notify Architect for PR review**
+
+```bash
+# Notify: "Task LA-P1-001 completed, PR ready for Architect review"
 ```
 
 ---
@@ -215,6 +251,8 @@ npm run lint
 - [ ] All tests pass (if applicable)?
 - [ ] Functionality verified manually?
 - [ ] No regressions introduced?
+- [ ] Playwright MCP evidence included for affected feature flows?
+- [ ] Adjacent regression flow validated with Playwright MCP?
 
 **Documentation:**
 - [ ] Code commented where necessary?
@@ -286,10 +324,8 @@ Select-String -Path src/hooks/useSupabaseQuery.js -Pattern "cancelled = true"
 
 **If approved:**
 ```bash
-# Merge to main
-git checkout main
-git merge --no-ff feature/LA-P1-001-useSupabaseQuery-hook -m "Merge feature/LA-P1-001: useSupabaseQuery hook"
-git push
+# Approve PR and merge using repository PR workflow
+# (squash/merge/rebase according to repo policy)
 
 # Mark task as DONE in backlog
 # Update DEVELOPMENT_BACKLOG.md:
@@ -372,7 +408,9 @@ git commit -m "chore(liga-admin): add react-hot-toast dependency"
 2. ✅ Self-verify ALL checks
 3. ✅ Update relevant documentation
 4. ✅ Descriptive commit message
-5. ✅ Notify when ready for review
+5. ✅ Open Pull Request to `main`
+6. ✅ Include Playwright MCP evidence for affected feature flows
+7. ✅ Notify when PR is ready for Architect review
 
 ### Architect Responsibilities
 
@@ -380,7 +418,8 @@ git commit -m "chore(liga-admin): add react-hot-toast dependency"
 2. ✅ Run automated verifications
 3. ✅ Review architecture and quality
 4. ✅ Generate constructive, specific feedback
-5. ✅ Approve or reject with clear justification
+5. ✅ Verify Playwright MCP evidence and regression coverage in PR
+6. ✅ Approve or reject with clear justification
 
 ### Issue Severity Levels
 
