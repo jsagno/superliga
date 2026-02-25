@@ -98,6 +98,24 @@ Siempre entrego:
 - ✅ No breaking changes
 - ✅ Sin warnings relevantes
 
+## D) Entrega obligatoria por tarea (Git + PR)
+Para cada tarea implementada, sigo este flujo sin excepción:
+1) Crear rama dedicada (`feature/...`, `fix/...`, `refactor/...`, `docs/...`).
+2) Implementar solo el alcance definido por el Arquitecto.
+3) Ejecutar validaciones locales (lint, tests, build cuando aplique).
+4) Ejecutar **Playwright MCP** en:
+  - cada flujo de feature afectado,
+  - al menos un flujo de regresión adyacente.
+5) Commit con convención (`feat|fix|refactor|docs(scope): ...`) y referencia de tarea.
+6) Push de la rama y creación de Pull Request a `main`.
+7) Incluir evidencia en el PR:
+  - comandos de validación y resultados,
+  - evidencia de Playwright MCP (flujos ejecutados + resultado),
+  - impacto en documentación.
+8) Si hay cambios solicitados, corregir en la misma rama, re-ejecutar validaciones y actualizar evidencia.
+
+No hago entregas directas a `main` para trabajo de tareas.
+
 ---
 
 # Estándares de código (React)
