@@ -8,9 +8,19 @@
  */
 export async function loginAdmin(page, email, password) {
   await page.goto('/admin/login');
-  await page.fill('input[type="email"]', email);
-  await page.fill('input[type="password"]', password);
-  await page.click('button[type="submit"]');
-  // Espera a que redirija a dashboard o players
-  await page.waitForURL(/\/admin\/(dashboard|players)/);
+  
+  // Wait for login form to be visible
+  await page.waitForSelector('input[placeholder*="nombre"]', { timeout: 10000 });
+  
+  // Fill email/username field (first textbox)
+  await page.locator('input[placeholder*="nombre"]').fill(email);
+  
+  // Fill password field
+  await page.locator('input[type="password"]').fill(password);
+  
+  // Click login button
+  await page.locator('button:has-text("Iniciar Sesión")').click();
+  
+  // Wait for redirect to admin area
+  await page.waitForURL(/\/admin/, { timeout: 10000 });
 }

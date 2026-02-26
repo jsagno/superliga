@@ -290,14 +290,19 @@ async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId }) {
 
   let filtered = (battles || []).map(x => x.battle_id);
   
-  // If zone/team filters are active, filter by team participation
-  if (teamId && zoneId && filtered.length > 0) {
-    // Get all players assigned to this team during the battle period
-    const { data: assignments, error: e1 } = await supabase
+  // If zone/team filters are active, filter by player participation
+  if (zoneId && filtered.length > 0) {
+    // Build query to get player assignments in the selected zone (and optionally team)
+    let assignmentQuery = supabase
       .from('season_zone_team_player')
       .select('player_id, start_date, end_date')
-      .eq('team_id', teamId)
       .eq('zone_id', zoneId);
+    
+    if (teamId) {
+      assignmentQuery = assignmentQuery.eq('team_id', teamId);
+    }
+    
+    const { data: assignments, error: e1 } = await assignmentQuery;
     
     if (e1 || !assignments || assignments.length === 0) {
       return [];
@@ -305,30 +310,45 @@ async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId }) {
     
     const playerIds = [...new Set(assignments.map(a => a.player_id))];
     
-    // Get battle_round_player records for these players
-    const { data: brp, error: e2 } = await supabase
-      .from('battle_round_player')
-      .select('battle_round_id, player_id')
-      .in('player_id', playerIds)
-      .limit(10000);
+    // Get battle_round_player records for these players in batches to avoid URL length limits
+    const batchSize = 100; // Process 100 records at a time
+    const allRoundIds = new Set();
     
-    if (e2) throw e2;
+    for (let i = 0; i < playerIds.length; i += batchSize) {
+      const batchPlayerIds = playerIds.slice(i, i + batchSize);
+      
+      const { data: brp, error: e2 } = await supabase
+        .from('battle_round_player')
+        .select('battle_round_id')
+        .in('player_id', batchPlayerIds)
+        .limit(5000);
+      
+      if (e2) throw e2;
+      
+      (brp || []).forEach(r => allRoundIds.add(r.battle_round_id));
+    }
     
-    // Get battle_round to map to battle_id
-    const roundIds = [...new Set((brp || []).map(x => x.battle_round_id))];
-    if (roundIds.length === 0) return [];
+    if (allRoundIds.size === 0) return [];
     
-    const { data: rounds, error: e3 } = await supabase
-      .from('battle_round')
-      .select('battle_round_id, battle_id')
-      .in('battle_round_id', roundIds);
+    // Get battle_round to map to battle_id in batches
+    const roundIdsArray = [...allRoundIds];
+    const zoneBattleIds = new Set();
     
-    if (e3) throw e3;
+    for (let i = 0; i < roundIdsArray.length; i += 500) {
+      const batchRoundIds = roundIdsArray.slice(i, i + 500);
+      
+      const { data: rounds, error: e3 } = await supabase
+        .from('battle_round')
+        .select('battle_id')
+        .in('battle_round_id', batchRoundIds);
+      
+      if (e3) throw e3;
+      
+      (rounds || []).forEach(r => zoneBattleIds.add(r.battle_id));
+    }
     
-    const teamBattleIds = new Set((rounds || []).map(r => r.battle_id));
-    
-    // Filter to only battles where team players participated
-    filtered = filtered.filter(id => teamBattleIds.has(id));
+    // Filter to only battles where zone/team players participated
+    filtered = filtered.filter(id => zoneBattleIds.has(id));
   }
   
   return filtered;
@@ -376,21 +396,26 @@ async function fetchBattleIdsByPlayer(playerId, { fromISO, toISO, mode, zoneId, 
 
   let filtered = (b || []).map(x => x.battle_id);
   
-  // 4) If teamId filter is set, check if player was in that team during battle time
-  if (teamId && zoneId && filtered.length > 0) {
-    // Get player's team assignment periods
-    const { data: assignments, error: e4 } = await supabase
+  // 4) If zone filter is set, check if player was in that zone (and optionally team) during battle time
+  if (zoneId && filtered.length > 0) {
+    // Build query to get player's assignment periods
+    let assignmentQuery = supabase
       .from('season_zone_team_player')
       .select('start_date, end_date')
       .eq('player_id', playerId)
-      .eq('team_id', teamId)
       .eq('zone_id', zoneId);
     
-    if (e4 || !assignments || assignments.length === 0) {
-      return []; // Player was never in this team
+    if (teamId) {
+      assignmentQuery = assignmentQuery.eq('team_id', teamId);
     }
     
-    // Filter battles by date - only keep battles where player was active in team
+    const { data: assignments, error: e4 } = await assignmentQuery;
+    
+    if (e4 || !assignments || assignments.length === 0) {
+      return []; // Player was never in this zone/team
+    }
+    
+    // Filter battles by date - only keep battles where player was active in zone/team
     const battlesWithTime = b || [];
     filtered = battlesWithTime.filter(battle => {
       const battleDate = new Date(battle.battle_time);
