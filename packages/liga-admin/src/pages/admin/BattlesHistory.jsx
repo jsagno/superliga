@@ -559,6 +559,7 @@ export default function BattlesHistory() {
   const [expanded, setExpanded] = useState(() => new Set());
   const [cardsById, setCardsById] = useState({});
   const [extremeConfigs, setExtremeConfigs] = useState({}); // { battle_id: { config, validation } }
+  const [isExtremeConfigDisabled, setIsExtremeConfigDisabled] = useState(false); // Flag to disable extreme validation
 
   useEffect(() => {
     (async () => {
@@ -570,13 +571,35 @@ export default function BattlesHistory() {
         // Load most recent season (instead of filtering by is_active which may not exist)
         const { data: seasons, error: seasonError } = await supabase
           .from('season')
-          .select('season_id, description')
+          .select('season_id, description, is_extreme_config_disabled')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
         
         if (!seasonError && seasons) {
           setActiveSeason(seasons);
+          
+          // Load extreme config disable flag
+          setIsExtremeConfigDisabled(seasons.is_extreme_config_disabled || false);
+          
+          // Subscribe to season changes for real-time config updates
+          const subscription = supabase
+            .channel(`season:${seasons.season_id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'season',
+                filter: `season_id=eq.${seasons.season_id}`,
+              },
+              (payload) => {
+                if (payload.new && typeof payload.new.is_extreme_config_disabled === 'boolean') {
+                  setIsExtremeConfigDisabled(payload.new.is_extreme_config_disabled);
+                }
+              }
+            )
+            .subscribe();
           
           // Load zones for active season
           const { data: zonesData, error: zonesError } = await supabase
@@ -588,6 +611,11 @@ export default function BattlesHistory() {
           if (!zonesError && zonesData && zonesData.length > 0) {
             setZones(zonesData);
           }
+          
+          // Cleanup subscription on unmount
+          return () => {
+            subscription.unsubscribe();
+          };
         }
       } catch (e) {
         console.error(e);
@@ -823,7 +851,8 @@ export default function BattlesHistory() {
         
         // Load extreme/risky configurations for war duels
         const configs = {};
-        if (res.battles.length > 0) {
+        // Skip loading configs if extreme configuration is disabled for the season
+        if (res.battles.length > 0 && !isExtremeConfigDisabled) {
           for (const battle of res.battles) {
             // Only check for war duels (round_count > 1)
             // River Race duels can be: riverRaceDuel, riverRaceDuelColosseum, riverRacePvP
@@ -887,7 +916,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [battleIds, page, playerId]);
+  }, [battleIds, page, playerId, isExtremeConfigDisabled]);
 
   // Auto-expand battle if battleId parameter is present in URL
   useEffect(() => {
