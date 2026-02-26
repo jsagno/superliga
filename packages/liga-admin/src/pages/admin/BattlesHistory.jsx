@@ -513,6 +513,7 @@ export default function BattlesHistory() {
   const [zones, setZones] = useState([]);
   const [teams, setTeams] = useState([]);
   const [activeSeason, setActiveSeason] = useState(null);
+  const [zoneTeamPlayers, setZoneTeamPlayers] = useState([]);
 
   const playerId = searchParams.get("playerId") || "";
   const mode = searchParams.get("mode") || "";
@@ -628,6 +629,68 @@ export default function BattlesHistory() {
       }
     })();
   }, [zoneId]);
+
+  // Load players when zone changes - filter by zone team player assignments
+  useEffect(() => {
+    (async () => {
+      if (!zoneId) {
+        setZoneTeamPlayers([]);
+        return;
+      }
+      
+      try {
+        console.log('Loading players for zone:', zoneId);
+        
+        // Get player assignments for this zone
+        // Filter by active assignments (start_date <= today, end_date >= today or null)
+        const today = new Date().toISOString().split('T')[0];
+        
+        let query = supabase
+          .from('season_zone_team_player')
+          .select('player_id, start_date, end_date')
+          .eq('zone_id', zoneId);
+        
+        // Filter for active assignments
+        query = query.or(`end_date.is.null,end_date.gte.${today}`);
+        query = query.lte('start_date', today);
+        
+        const { data: assignments, error } = await query;
+        
+        console.log('Zone player assignments result:', { assignments, error });
+        
+        if (error) {
+          console.error('Error loading zone players:', error);
+          setZoneTeamPlayers([]);
+          return;
+        }
+        
+        if (!assignments || assignments.length === 0) {
+          console.log('No players found for this zone');
+          setZoneTeamPlayers([]);
+          return;
+        }
+        
+        // Extract unique player IDs
+        const playerIds = [...new Set(assignments.map(a => a.player_id).filter(Boolean))];
+        console.log('Zone player IDs:', playerIds);
+        
+        setZoneTeamPlayers(playerIds);
+      } catch (e) {
+        console.error('Exception loading zone players:', e);
+        setZoneTeamPlayers([]);
+      }
+    })();
+  }, [zoneId]);
+
+  // Filter players based on selected zone
+  const filteredPlayers = useMemo(() => {
+    if (!zoneId || zoneTeamPlayers.length === 0) {
+      // No zone selected or no players in zone: show all players
+      return players;
+    }
+    // Zone selected: show only players in that zone
+    return players.filter(p => zoneTeamPlayers.includes(p.player_id));
+  }, [players, zoneId, zoneTeamPlayers]);
 
   // cuando cambian filtros, recalculamos battleIds y reseteamos paginado
   useEffect(() => {
@@ -883,14 +946,16 @@ export default function BattlesHistory() {
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-white/70">Jugador</label>
+              <label className="mb-1 block text-xs font-medium text-white/70">
+                Jugador{zoneId && zoneTeamPlayers.length > 0 ? ` (${filteredPlayers.length} en zona)` : ''}
+              </label>
               <select
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 value={playerId}
                 onChange={(e) => onFilter("playerId", e.target.value)}
               >
-                <option value="">Todos los jugadores</option>
-                {players.map((p) => (
+                <option value="">{zoneId && filteredPlayers.length === 0 ? 'Sin jugadores en esta zona' : 'Todos los jugadores'}</option>
+                {filteredPlayers.map((p) => (
                   <option key={p.player_id} value={p.player_id}>
                     {(p.nick || p.name) ?? p.player_id}
                   </option>
