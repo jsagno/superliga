@@ -38,9 +38,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
     // Wait for page to load
     await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
     
-    // Get dropdowns
-    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
-    const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
+    // Get dropdowns by position (more stable than label navigation)
+    const playerDropdown = page.getByRole('combobox').nth(0); // First dropdown is Player
+    const zoneDropdown = page.getByRole('combobox').nth(3);    // Fourth dropdown is Zone
     
     await expect(zoneDropdown).toBeVisible();
     await expect(playerDropdown).toBeVisible();
@@ -106,8 +106,8 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
     await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
     
-    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
-    const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
+    const playerDropdown = page.getByRole('combobox').nth(0);
+    const zoneDropdown = page.getByRole('combobox').nth(3);
     
     // Count initial players
     const initialCount = await playerDropdown.locator('option').count();
@@ -152,8 +152,8 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
     await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
     
-    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
-    const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
+    const playerDropdown = page.getByRole('combobox').nth(0);
+    const zoneDropdown = page.getByRole('combobox').nth(3);
     
     // Get available zones
     const zoneOptions = await zoneDropdown.locator('option').allTextContents();
@@ -189,7 +189,7 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
     await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
     
-    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
+    const zoneDropdown = page.getByRole('combobox').nth(3);
     
     // Get available zones
     const zoneValue = await zoneDropdown.locator('option').nth(1).getAttribute('value');
@@ -213,14 +213,17 @@ test.describe('Zone-based player filtering in Battles History', () => {
     await page.reload();
     await page.waitForTimeout(2000);
     
+    // Re-select dropdown after reload (old reference is stale)
+    const zoneDropdownAfterReload = page.getByRole('combobox').nth(3);
+    
     // Verify zone is still selected
-    const selectedZone = await zoneDropdown.inputValue();
+    const selectedZone = await zoneDropdownAfterReload.inputValue();
     expect(selectedZone).toBe(zoneValue);
     
-    // Verify players are still filtered
-    const playerLabel = page.locator('label:has-text("Jugador")');
-    const labelText = await playerLabel.textContent();
-    console.log(`Player label after refresh: ${labelText}`);
+    // Verify players dropdown count
+    const playerDropdownAfterReload = page.getByRole('combobox').nth(0);
+    const playerOptions = await playerDropdownAfterReload.locator('option').count();
+    console.log(`Player options after refresh: ${playerOptions}`);
   });
 
   test('zone and player filter combination works correctly', async ({ page }) => {
@@ -229,8 +232,8 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
     await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
     
-    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
-    const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
+    const playerDropdown = page.getByRole('combobox').nth(0);
+    const zoneDropdown = page.getByRole('combobox').nth(3);
     
     // Get zones
     const zoneOptions = await zoneDropdown.locator('option').allTextContents();

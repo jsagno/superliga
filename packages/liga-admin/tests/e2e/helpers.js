@@ -18,9 +18,12 @@ export async function loginAdmin(page, email, password) {
   // Fill password field
   await page.locator('input[type="password"]').fill(password);
   
-  // Click login button
-  await page.locator('button:has-text("Iniciar Sesión")').click();
+  // Click login button and wait for navigation simultaneously
+  await Promise.all([
+    page.waitForNavigation({ url: /\/admin/, waitUntil: 'domcontentloaded', timeout: 15000 }),
+    page.locator('button:has-text("Iniciar Sesión")').click()
+  ]);
   
-  // Wait for redirect to admin area
-  await page.waitForURL(/\/admin/, { timeout: 10000 });
+  // Verify we're on the admin page by checking for the navigation header
+  await page.waitForSelector('text=Liga Admin', { timeout: 5000 });
 }
