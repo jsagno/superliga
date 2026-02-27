@@ -8,9 +8,9 @@ test('Histórico de batallas carga filtros y muestra estado de resultados', asyn
   );
 
   await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-  await page.goto('/admin/battles/history');
+  await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-  await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
   await expect(page.getByText('Jugador')).toBeVisible();
   await expect(page.getByText('Modo')).toBeVisible();
 

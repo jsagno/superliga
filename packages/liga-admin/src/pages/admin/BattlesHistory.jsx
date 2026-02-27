@@ -562,6 +562,8 @@ export default function BattlesHistory() {
   const [isExtremeConfigDisabled, setIsExtremeConfigDisabled] = useState(false); // Flag to disable extreme validation
 
   useEffect(() => {
+    let subscription = null;
+    
     (async () => {
       try {
         const [ps, ms] = await Promise.all([fetchPlayersIndex(), fetchDistinctModes()]);
@@ -583,7 +585,7 @@ export default function BattlesHistory() {
           setIsExtremeConfigDisabled(seasons.is_extreme_config_disabled || false);
           
           // Subscribe to season changes for real-time config updates
-          const subscription = supabase
+          subscription = supabase
             .channel(`season:${seasons.season_id}`)
             .on(
               'postgres_changes',
@@ -611,16 +613,18 @@ export default function BattlesHistory() {
           if (!zonesError && zonesData && zonesData.length > 0) {
             setZones(zonesData);
           }
-          
-          // Cleanup subscription on unmount
-          return () => {
-            subscription.unsubscribe();
-          };
         }
       } catch (e) {
         console.error(e);
       }
     })();
+    
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
   
   // Load teams when zone changes
