@@ -360,7 +360,6 @@ export default function SeasonExtreme() {
         .from("season")
         .update({
           is_extreme_config_disabled: isExtremeConfigDisabled,
-          updated_at: new Date().toISOString(),
         })
         .eq("season_id", seasonId);
 
