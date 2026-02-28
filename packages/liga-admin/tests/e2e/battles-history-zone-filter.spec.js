@@ -9,9 +9,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('shows all players when no zone is selected', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     // Get the player dropdown
     const playerDropdown = page.locator('select').filter({ hasText: /Jugador/i }).first();
@@ -33,10 +33,10 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('filters players when zone is selected', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
     // Wait for page to load
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     // Get dropdowns
     const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
@@ -102,9 +102,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('resets to all players when zone is cleared', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
     const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
@@ -148,9 +148,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('maintains player selection when switching zones', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
     const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');
@@ -185,9 +185,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('zone filter persists in URL parameters', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
     
@@ -225,9 +225,9 @@ test.describe('Zone-based player filtering in Battles History', () => {
 
   test('zone and player filter combination works correctly', async ({ page }) => {
     await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-    await page.goto('/admin/battles/history');
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
 
-    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
     
     const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
     const playerDropdown = page.locator('label:has-text("Jugador")').locator('..').locator('select');

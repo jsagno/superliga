@@ -101,6 +101,9 @@ export default function SeasonExtreme() {
   const [extremeDeck, setExtremeDeck] = useState([]);
   const [activeCardId, setActiveCardId] = useState(null);
 
+  // Flag to disable extreme configuration for this season
+  const [isExtremeConfigDisabled, setIsExtremeConfigDisabled] = useState(false);
+
   // Búsqueda de cartas
   const [cardSearch, setCardSearch] = useState("");
   const [filteredCards, setFilteredCards] = useState([]);
@@ -144,6 +147,9 @@ export default function SeasonExtreme() {
 
       if (seasonError) throw seasonError;
       setSeason(seasonData);
+      
+      // Load the extreme config disable flag
+      setIsExtremeConfigDisabled(seasonData?.is_extreme_config_disabled || false);
 
       // Cargar equipos de la temporada (asumiendo que hay una tabla season_team o similar)
       // Por ahora cargaremos todos los equipos
@@ -349,7 +355,17 @@ export default function SeasonExtreme() {
   async function handleSave() {
     setSaving(true);
     try {
-      // 1. Guardar configuración del mazo extreme
+      // 1. Update season with extreme config disable flag
+      const { error: seasonUpdateError } = await supabase
+        .from("season")
+        .update({
+          is_extreme_config_disabled: isExtremeConfigDisabled,
+        })
+        .eq("season_id", seasonId);
+
+      if (seasonUpdateError) throw seasonUpdateError;
+
+      // 2. Guardar configuración del mazo extreme
       const deckCardIds = extremeDeck.map((c) => c.card_id);
       
       if (deckCardIds.length > 24) {
@@ -371,7 +387,7 @@ export default function SeasonExtreme() {
 
       if (configError) throw configError;
 
-      // 2. Eliminar participantes existentes para esta temporada
+      // 3. Eliminar participantes existentes para esta temporada
       const { error: deleteError } = await supabase
         .from("season_extreme_participant")
         .delete()
@@ -379,7 +395,7 @@ export default function SeasonExtreme() {
 
       if (deleteError) throw deleteError;
 
-      // 3. Insertar nuevos participantes
+      // 4. Insertar nuevos participantes
       const participantsToInsert = [];
 
       // Agregar Extremers
@@ -520,6 +536,27 @@ export default function SeasonExtreme() {
             <p>
               • Las fechas de inicio/fin permiten dar de alta o baja a los participantes cuando sea necesario.
             </p>
+          </div>
+        </div>
+
+        {/* Disable Extreme Configuration Toggle */}
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="disableExtremeConfig"
+              checked={isExtremeConfigDisabled}
+              onChange={(e) => setIsExtremeConfigDisabled(e.target.checked)}
+              className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 cursor-pointer"
+            />
+            <div className="flex-1">
+              <label htmlFor="disableExtremeConfig" className="font-semibold text-yellow-900 dark:text-yellow-200 cursor-pointer">
+                Deshabilitar Configuración Extreme para esta temporada
+              </label>
+              <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
+                Cuando está habilitado, el histórico de batallas no mostrará validaciones de mazos extreme/risky.
+              </p>
+            </div>
           </div>
         </div>
 
