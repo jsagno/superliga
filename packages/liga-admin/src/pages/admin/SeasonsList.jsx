@@ -888,6 +888,15 @@ export default function SeasonsList() {
                     <span className="material-symbols-outlined">local_fire_department</span>
                     <span>Extreme</span>
                   </button>
+
+                  <button
+                    onClick={() => nav(`/admin/seasons/${activeSeason.season_id}/restrictions`)}
+                    className="flex-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white/5 text-sm font-bold text-amber-600 dark:text-amber-400 shadow-sm hover:bg-white/10 active:translate-y-0.5 transition-all"
+                    title="Gestionar restricciones de cartas (RES)"
+                  >
+                    <span className="material-symbols-outlined">block</span>
+                    <span>Restricciones</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -966,6 +975,15 @@ export default function SeasonsList() {
                     >
                       <span className="material-symbols-outlined text-base">local_fire_department</span>
                       <span>Extreme</span>
+                    </button>
+
+                    <button
+                      onClick={() => nav(`/admin/seasons/${s.season_id}/restrictions`)}
+                      className="h-8 px-3 rounded-lg bg-white/5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-white/10 transition-colors flex items-center gap-2"
+                      title="Restricciones"
+                    >
+                      <span className="material-symbols-outlined text-base">block</span>
+                      <span>Restricciones</span>
                     </button>
 
                     <button

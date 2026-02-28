@@ -26,6 +26,8 @@ import SeasonExtreme from "../pages/admin/SeasonExtreme.jsx";
 import GroupStandings from "../pages/admin/GroupStandings.jsx";
 import SeasonZoneRankings from "../pages/admin/SeasonZoneRankings.jsx";
 import SeasonDailyPoints from "../pages/admin/SeasonDailyPoints.jsx";
+import SeasonRestrictions from "../pages/admin/SeasonRestrictions.jsx";
+import SeasonRestrictionEdit from "../pages/admin/SeasonRestrictionEdit.jsx";
 
 const router = createBrowserRouter([
   { path: "/admin/login", element: <LoginAdmin /> },
@@ -59,6 +61,8 @@ const router = createBrowserRouter([
       { path: "seasons/:seasonId/cup-matches", element: <ScheduledMatches /> },
       { path: "seasons/:seasonId/group-standings", element: <GroupStandings /> },
       { path: "seasons/:seasonId/daily-points", element: <SeasonDailyPoints /> },
+      { path: "seasons/:seasonId/restrictions", element: <SeasonRestrictions /> },
+      { path: "seasons/:seasonId/restrictions/edit", element: <SeasonRestrictionEdit /> },
 
       { path: "cups", element: <CupModes /> },
       { path: "captain-league", element: <CaptainLeague /> },
