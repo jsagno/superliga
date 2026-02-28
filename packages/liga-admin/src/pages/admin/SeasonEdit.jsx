@@ -51,6 +51,7 @@ export default function SeasonEdit() {
   const [status, setStatus] = useState("DRAFT");
 
   const [duelStartDate, setDuelStartDate] = useState("");
+  const [duelEndDate, setDuelEndDate] = useState("");
   const [ladderStartDate, setLadderStartDate] = useState("");
 
   const [seasonStartAt, setSeasonStartAt] = useState("");
@@ -82,6 +83,7 @@ export default function SeasonEdit() {
         setStatus("DRAFT");
         setDescription("");
         setDuelStartDate("");
+        setDuelEndDate("");
         setLadderStartDate("");
         setSeasonStartAt("");
         setSeasonEndAt("");
@@ -92,7 +94,7 @@ export default function SeasonEdit() {
       // load season
       const { data: sData, error: sErr } = await supabase
         .from("season")
-        .select("season_id,era_id,description,status,duel_start_date,ladder_start_date,season_start_at,season_end_at")
+        .select("season_id,era_id,description,status,duel_start_date,duel_end_date,ladder_start_date,season_start_at,season_end_at")
         .eq("season_id", seasonId)
         .maybeSingle();
 
@@ -107,6 +109,7 @@ export default function SeasonEdit() {
       setStatus((sData?.status ?? "DRAFT").toUpperCase());
 
       setDuelStartDate(toDateInput(sData?.duel_start_date));
+      setDuelEndDate(toDateInput(sData?.duel_end_date));
       setLadderStartDate(toDateInput(sData?.ladder_start_date));
 
       setSeasonStartAt(toDateTimeLocalInput(sData?.season_start_at));
@@ -129,6 +132,11 @@ export default function SeasonEdit() {
       return;
     }
 
+    if (duelStartDate && duelEndDate && duelEndDate < duelStartDate) {
+      alert("Duel End Date no puede ser anterior a Duel Start Date.");
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
@@ -136,6 +144,7 @@ export default function SeasonEdit() {
       description: description.trim(),
       status,
       duel_start_date: duelStartDate || null,
+      duel_end_date: duelEndDate || null,
       ladder_start_date: ladderStartDate || null,
       season_start_at: fromDateTimeLocalToIso(seasonStartAt),
       season_end_at: fromDateTimeLocalToIso(seasonEndAt),
@@ -289,6 +298,18 @@ export default function SeasonEdit() {
                     type="date"
                     value={duelStartDate}
                     onChange={(e) => setDuelStartDate(e.target.value)}
+                    className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col w-full gap-2">
+                  <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold leading-normal ml-1">
+                    Duel End Date (date)
+                  </label>
+                  <input
+                    type="date"
+                    value={duelEndDate}
+                    onChange={(e) => setDuelEndDate(e.target.value)}
                     className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
                   />
                 </div>

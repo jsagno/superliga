@@ -72,6 +72,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added BattlesHistory Integration section to [RES_FEATURE.md](features/RES_FEATURE.md)
 - Includes workflows, testing recommendations, and known limitations
 
+#### Duel Reconciliation (Season Scheduling) - February 2026
+
+**Core Functionality**:
+- Automatic reconciliation of `CW_DAILY` scheduled matches with season duel boundaries
+- Respects player assignment windows (`start_date`/`end_date` in `season_zone_team_player`)
+- Creates missing scheduled_match rows within effective window
+- Cancels pending matches that fall outside the effective window
+- Idempotent operation—safe to run multiple times
+
+**Database Schema Changes**:
+- Added `duel_end_date DATE` column to `season` table
+- Extended `scheduled_match.status` enum to include `CANCELED` value
+- Backfill logic: new seasons default `duel_end_date` to `season_end_at` date or `ladder_start_date`
+
+**UI Updates**:
+- Season edit form includes `duel_end_date` date input field
+- Validation: `duel_end_date >= duel_start_date`
+- Season list displays date range using `duel_end_date` as endpoint
+- Reconciliation trigger includes progress modal with counter feedback
+
+**Implementation Details**:
+- Effective window computation: `max(duel_start, player_start)` to `min(duel_end, player_end)`
+- Date normalization to ISO format (YYYY-MM-DD) to prevent timezone drift
+- Batched operations: process all assignments per zone in single pass
+- Progress reporting: Created/Skipped/Canceled counters with real-time updates
+
+**Utilities**:
+- `duelReconciliation.js` - Reusable date window computation functions
+- `dateKey()` - Normalize dates to YYYY-MM-DD format
+- `computeEffectiveWindow()` - Calculate intersection of season and player windows
+- `generateDateRange()` - Generate all dates in a closed range
+
+**Testing**:
+- E2E tests cover: reconciliation on new seasons, idempotent runs, assignment window respect
+- Adjacent regression tests: season list navigation, season edit form functionality
+- Schema validation: CANCELED status enum and `duel_end_date` column presence
+
+**Files Modified**:
+- `supabase/migrations/20260228110000_add_duel_end_date_and_canceled_status.sql`
+- `packages/liga-admin/src/pages/admin/SeasonEdit.jsx`
+- `packages/liga-admin/src/pages/admin/SeasonsList.jsx` (generateDailyDuels refactored)
+- `packages/liga-admin/src/lib/duelReconciliation.js` (new utility module)
+- `packages/liga-admin/tests/e2e/duel-reconciliation.spec.js` (new E2E test suite)
+
+**Impact**:
+- Admins can now set explicit duel end dates, overriding season end dates for seasonal scheduling flexibility
+- Scheduled matches automatically stay in sync with player assignments
+- Expired player assignments no longer generate or leave orphaned duel records
+- Safe reconciliation workflow enables auditing and cleanup without data loss
+
 ### Fixed
 
 #### Zone Filtering in Restrictions List - February 2026
