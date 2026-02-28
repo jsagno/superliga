@@ -258,6 +258,63 @@ function validateExtremeDuel(perRound, isRisky, allowedCardIds) {
   }
 }
 
+// Fetch card restrictions for a player in a season
+async function fetchPlayerRestrictionsConfig(playerId, seasonId) {
+  if (!playerId || !seasonId) return null;
+  
+  // Get all card restrictions for this player in this season
+  const { data: restrictions, error } = await supabase
+    .from('season_card_restriction')
+    .select('card_id')
+    .eq('player_id', playerId)
+    .eq('season_id', seasonId);
+    
+  if (error) {
+    console.error('Error fetching restrictions:', error);
+    return null;
+  }
+  
+  if (!restrictions || restrictions.length === 0) {
+    return null;
+  }
+  
+  return {
+    restrictedCardIds: restrictions.map(r => r.card_id)
+  };
+}
+
+// Validate if a deck uses restricted cards
+function validateRestrictionCompliance(deckCards, restrictedCardIds) {
+  if (!Array.isArray(deckCards) || deckCards.length === 0) return false;
+  if (!Array.isArray(restrictedCardIds) || restrictedCardIds.length === 0) return true; // No restrictions = valid
+  
+  // Check if any card in the deck is in the restricted list
+  return !deckCards.some(card => restrictedCardIds.includes(card.id));
+}
+
+// Validate RES compliance for a war duel
+function validateRestrictionDuel(perRound, restrictedCardIds) {
+  // perRound contains the rounds with team/opp arrays with deck_cards
+  const totalRounds = perRound.length;
+  
+  // Get all team decks (assuming we're validating for TEAM player)
+  const teamDecks = perRound.flatMap(r => 
+    (r.team || []).map(t => t.deck_cards).filter(Boolean)
+  );
+  
+  if (teamDecks.length === 0) return { valid: false, message: 'No decks found' };
+  
+  // Check if any deck uses restricted cards
+  const violatingDecks = teamDecks.filter(deck => !validateRestrictionCompliance(deck, restrictedCardIds));
+  const validDecks = teamDecks.length - violatingDecks.length;
+  
+  const isValid = violatingDecks.length === 0;
+  return {
+    valid: isValid,
+    message: `RES: ${validDecks}/${teamDecks.length} mazos válidos${violatingDecks.length > 0 ? ` (${violatingDecks.length} con cartas restringidas)` : ''}`
+  };
+}
+
 
 async function fetchDistinctModes() {
   // Trae modos existentes (api_game_mode) para el dropdown.
@@ -547,6 +604,7 @@ export default function BattlesHistory() {
   const zoneId = searchParams.get("zoneId") || "";
   const teamId = searchParams.get("teamId") || "";
   const extremeFilter = searchParams.get("extremeFilter") || "all";
+  const resFilter = searchParams.get("resFilter") || "all";
 
   const [loading, setLoading] = useState(false);
   const [battleIds, setBattleIds] = useState([]);
@@ -560,6 +618,7 @@ export default function BattlesHistory() {
   const [cardsById, setCardsById] = useState({});
   const [extremeConfigs, setExtremeConfigs] = useState({}); // { battle_id: { config, validation } }
   const [isExtremeConfigDisabled, setIsExtremeConfigDisabled] = useState(false); // Flag to disable extreme validation
+  const [restrictionConfigs, setRestrictionConfigs] = useState({}); // { battle_id: { config, validation } }
 
   useEffect(() => {
     let subscription = null;
@@ -824,6 +883,60 @@ export default function BattlesHistory() {
           }
         }
         
+        // Apply RES (card restriction) filter if needed
+        if (resFilter === "withRes" && ids.length > 0 && activeSeason) {
+          // Get battle times for filtering
+          const { data: battleTimes, error } = await supabase
+            .from("battle")
+            .select("battle_id,battle_time,api_battle_type,round_count")
+            .in("battle_id", ids);
+          
+          if (!error && battleTimes) {
+            const filteredIds = [];
+            
+            for (const battle of battleTimes) {
+              // Only check war duels with multiple rounds
+              if (battle.round_count > 1 && (battle.api_battle_type === 'war' || battle.api_battle_type?.startsWith('riverRace'))) {
+                // Get rounds for this battle to find participating players
+                const { data: br, error: e1 } = await supabase
+                  .from("battle_round")
+                  .select("battle_round_id")
+                  .eq("battle_id", battle.battle_id);
+                
+                if (e1 || !br || br.length === 0) continue;
+                
+                const roundIds = br.map(r => r.battle_round_id);
+                
+                const { data: rp, error: e2 } = await supabase
+                  .from("battle_round_player")
+                  .select("player_id")
+                  .in("battle_round_id", roundIds);
+                
+                if (e2 || !rp || rp.length === 0) continue;
+                
+                const playerIds = [...new Set(rp.map(r => r.player_id).filter(Boolean))];
+                
+                // Check if any player in this battle has restrictions
+                let matchesFilter = false;
+                
+                for (const pid of playerIds) {
+                  const config = await fetchPlayerRestrictionsConfig(pid, activeSeason.season_id);
+                  if (config && config.restrictedCardIds && config.restrictedCardIds.length > 0) {
+                    matchesFilter = true;
+                    break;
+                  }
+                }
+                
+                if (matchesFilter) {
+                  filteredIds.push(battle.battle_id);
+                }
+              }
+            }
+            
+            ids = filteredIds;
+          }
+        }
+        
         setBattleIds(ids);
       } catch (e) {
         console.error(e);
@@ -832,7 +945,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter]);
+  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter, resFilter]);
 
   // carga de detalles por página
   useEffect(() => {
@@ -843,6 +956,7 @@ export default function BattlesHistory() {
         setRounds([]);
         setPlayersById({});
         setExtremeConfigs({});
+        setRestrictionConfigs({});
         return;
       }
       setLoading(true);
@@ -911,6 +1025,62 @@ export default function BattlesHistory() {
           }
         }
         setExtremeConfigs(configs);
+        
+        // Load RES (card restriction) configurations for war duels
+        const resConfigs = {};
+        if (res.battles.length > 0 && activeSeason) {
+          for (const battle of res.battles) {
+            // Only check for war duels (round_count > 1)
+            if (battle.round_count > 1 && (battle.api_battle_type === 'war' || battle.api_battle_type?.startsWith('riverRace'))) {
+              // Get rounds for this battle
+              const battleRounds = res.rounds.filter(r => r.battle_id === battle.battle_id);
+              const summary = computeBattleSummary({ battle, rounds: battleRounds, playersById: res.playersById });
+              
+              // Si hay un playerId específico, validamos solo para ese jugador
+              if (playerId) {
+                const config = await fetchPlayerRestrictionsConfig(playerId, activeSeason.season_id);
+                if (config) {
+                  const validation = validateRestrictionDuel(summary.perRound, config.restrictedCardIds);
+                  resConfigs[battle.battle_id] = {
+                    config,
+                    validation,
+                    playerId
+                  };
+                }
+              } else {
+                // Si no hay playerId, validamos para todos los jugadores del battle
+                const playerIdsInBattle = [...new Set(battleRounds.map(r => r.player_id).filter(Boolean))];
+                const validations = {};
+                
+                for (const pid of playerIdsInBattle) {
+                  const config = await fetchPlayerRestrictionsConfig(pid, activeSeason.season_id);
+                  if (config) {
+                    // Filter summary.perRound to only include rounds where this player participated
+                    const playerPerRound = summary.perRound.map(round => ({
+                      ...round,
+                      team: round.team.filter(t => t.player_id === pid),
+                      opp: round.opp // keep opponent data unchanged
+                    })).filter(round => round.team.length > 0); // only keep rounds where player participated
+                    
+                    const validation = validateRestrictionDuel(playerPerRound, config.restrictedCardIds);
+                    validations[pid] = {
+                      config,
+                      validation
+                    };
+                  }
+                }
+                
+                if (Object.keys(validations).length > 0) {
+                  resConfigs[battle.battle_id] = {
+                    multiPlayer: true,
+                    validations
+                  };
+                }
+              }
+            }
+          }
+        }
+        setRestrictionConfigs(resConfigs);
       } catch (e) {
         console.error(e);
         setBattles([]);
@@ -920,7 +1090,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [battleIds, page, playerId, isExtremeConfigDisabled]);
+  }, [battleIds, page, playerId, isExtremeConfigDisabled, activeSeason]);
 
   // Auto-expand battle if battleId parameter is present in URL
   useEffect(() => {
@@ -1002,7 +1172,7 @@ export default function BattlesHistory() {
 
         {/* Filters */}
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-white/70">
                 Jugador{zoneId && zoneTeamPlayers.length > 0 ? ` (${filteredPlayers.length} en zona)` : ''}
@@ -1046,6 +1216,18 @@ export default function BattlesHistory() {
                 <option value="extreme">Solo Extreme</option>
                 <option value="risky">Solo Risky</option>
                 <option value="any">Extreme o Risky</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="mb-1 block text-xs font-medium text-white/70">RES</label>
+              <select
+                className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                value={resFilter}
+                onChange={(e) => onFilter("resFilter", e.target.value)}
+              >
+                <option value="all">Todos</option>
+                <option value="withRes">Solo con RES</option>
               </select>
             </div>
           </div>
@@ -1226,6 +1408,42 @@ export default function BattlesHistory() {
                                     <span className="text-blue-400" title={extremeConfigs[battle.battle_id].validation.message}>✓</span>
                                   ) : (
                                     <span className="text-red-400" title={extremeConfigs[battle.battle_id].validation.message}>✗</span>
+                                  )}
+                                </>
+                              )}
+                            </span>
+                          )}
+                          {restrictionConfigs[battle.battle_id] && (
+                            <span className="flex items-center gap-1">
+                              {restrictionConfigs[battle.battle_id].multiPlayer ? (
+                                // Múltiples jugadores: mostrar resumen de validaciones
+                                (() => {
+                                  const validations = restrictionConfigs[battle.battle_id].validations || {};
+                                  const allValid = Object.values(validations).every(v => v.validation.valid);
+                                  const someValid = Object.values(validations).some(v => v.validation.valid);
+                                  const count = Object.keys(validations).length;
+                                  
+                                  return (
+                                    <>
+                                      <span title="Validación RES (Restricciones)">🚫</span>
+                                      {allValid ? (
+                                        <span className="text-blue-400" title={`${count} jugador(es) sin usar cartas restringidas`}>✓</span>
+                                      ) : someValid ? (
+                                        <span className="text-yellow-400" title="Validación parcial (ver detalle)">⚠</span>
+                                      ) : (
+                                        <span className="text-red-400" title={`${count} jugador(es) usaron cartas restringidas`}>✗</span>
+                                      )}
+                                    </>
+                                  );
+                                })()
+                              ) : (
+                                // Jugador único
+                                <>
+                                  <span title="RES (Restricciones)">🚫</span>
+                                  {restrictionConfigs[battle.battle_id].validation.valid ? (
+                                    <span className="text-blue-400" title={restrictionConfigs[battle.battle_id].validation.message}>✓</span>
+                                  ) : (
+                                    <span className="text-red-400" title={restrictionConfigs[battle.battle_id].validation.message}>✗</span>
                                   )}
                                 </>
                               )}
