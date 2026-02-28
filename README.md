@@ -123,6 +123,40 @@ React 19 admin interface for managing competitive seasons.
 - Player & team management
 - Real-time standings
 - Deck validation (Extreme/Risky modes)
+- **Card Restrictions** - Restrict specific cards for players per season
+
+## 🎯 Core Features
+
+### Card Restrictions (RES)
+Competitive balance tool for restricting specific cards per player during tournament seasons.
+
+**Documentation**: [docs/openspec/features/RES_FEATURE.md](./docs/openspec/features/RES_FEATURE.md)
+
+**Capabilities**:
+- Bulk create restrictions for multiple players and cards simultaneously
+- Real-time updates across admin sessions
+- Duplicate detection and prevention
+- Search and filter by player/card
+- Undo-enabled deletion with 5-second window
+- Full audit trail with creator tracking
+
+**Access**: Admin Dashboard → Seasons → "Restricciones" button
+
+### Extreme Mode (Validation)
+Advanced deck validation with professional tournament rules.
+
+**Documentation**: [docs/openspec/features/EXTREME_FEATURE.md](./docs/openspec/features/EXTREME_FEATURE.md)
+
+**Capabilities**:
+- Card rarity pair detection
+- Level balance verification
+- Elixir cost constraints
+- Evolution variant support
+
+### Clash Sync (CRON)
+Automated battle data synchronization.
+
+**Documentation**: [docs/openspec/features/cron/](./docs/openspec/features/cron/)
 
 ## 📚 Documentation
 
