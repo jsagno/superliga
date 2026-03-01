@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { getBattleDateKey, selectBestBattle } from "../../lib/battleDateUtils";
 
 function fmtDateShort(dateStr) {
   if (!dateStr) return "";
@@ -388,7 +389,8 @@ export default function SeasonsList() {
           match.scheduled_from,
           match.scheduled_to,
           match.stage,
-          match.scheduled_match_id
+          match.scheduled_match_id,
+          seasonId
         );
 
         if (!availableBattle) {
@@ -479,12 +481,25 @@ export default function SeasonsList() {
     }
   }
 
-  async function findAvailableBattle(playerId, scheduledFrom, scheduledTo, stage, scheduledMatchId) {
+  async function findAvailableBattle(playerId, scheduledFrom, scheduledTo, stage, scheduledMatchId, seasonId) {
     try {
-      const fromISO = new Date(scheduledFrom).toISOString();
-      const toISO = new Date(scheduledTo).toISOString();
+      // Load season cutoff configuration
+      const { data: seasonData } = await supabase
+        .from("season")
+        .select("battle_cutoff_minutes, battle_cutoff_tz_offset")
+        .eq("season_id", seasonId)
+        .single();
 
-      // Obtener batallas ya vinculadas a este match
+      const cutoffMinutes = seasonData?.battle_cutoff_minutes ?? 590;
+      
+      // Add ±30 minute buffer to search window
+      const bufferedFromTime = new Date(new Date(scheduledFrom).getTime() - 30 * 60 * 1000);
+      const bufferedToTime = new Date(new Date(scheduledTo).getTime() + 30 * 60 * 1000);
+      
+      const fromISO = bufferedFromTime.toISOString();
+      const toISO = bufferedToTime.toISOString();
+
+      // Fetch battles already linked to this match
       const { data: linked } = await supabase
         .from("scheduled_match_battle_link")
         .select("battle_id")
@@ -492,7 +507,7 @@ export default function SeasonsList() {
       
       const alreadyLinked = (linked || []).map(l => l.battle_id);
 
-      // Buscar battle_round_player del jugador
+      // Get battle_round_player entries for this player
       const { data: brp } = await supabase
         .from("battle_round_player")
         .select("battle_round_id")
@@ -503,7 +518,7 @@ export default function SeasonsList() {
 
       const roundIds = brp.map(r => r.battle_round_id);
 
-      // Obtener battle_id de esos rounds
+      // Get battle_id from those rounds
       const { data: rounds } = await supabase
         .from("battle_round")
         .select("battle_id, battle_round_id")
@@ -513,25 +528,75 @@ export default function SeasonsList() {
 
       const battleIds = [...new Set(rounds.map(r => r.battle_id))];
 
-      // Buscar batalla en el rango de fechas con el game_mode correcto
+      // Fetch 10 battles in the buffered time range (instead of 1)
       let battleQuery = supabase
         .from("battle")
-        .select("battle_id, battle_time, round_count")
+        .select("battle_id, battle_time, round_count, raw_payload")
         .in("battle_id", battleIds)
         .eq("api_game_mode", stage)
         .gte("battle_time", fromISO)
         .lte("battle_time", toISO)
         .order("battle_time", { ascending: true })
-        .limit(1);
+        .limit(10);  // Fetch 10 candidates
 
-      // Excluir batallas ya vinculadas
+      // Exclude already linked battles
       if (alreadyLinked.length > 0) {
-        battleQuery = battleQuery.not("battle_id", "in", `(${alreadyLinked.join(",")})`);
+        battleQuery = battleQuery.not("battle_id", "in", `(${alreadyLinked.join(",")})`)
       }
 
-      const { data: battles } = await battleQuery;
+      const { data: candidateBattles } = await battleQuery;
 
-      return battles && battles.length > 0 ? battles[0] : null;
+      if (!candidateBattles || candidateBattles.length === 0) return null;
+
+      // If only one candidate, return it directly
+      if (candidateBattles.length === 1) {
+        return candidateBattles[0];
+      }
+
+      // Filter by game date using getBattleDateKey
+      const scheduledDateKey = getBattleDateKey(scheduledFrom, cutoffMinutes);
+      const battlesByDate = candidateBattles.filter(battle => {
+        const battleDateKey = getBattleDateKey(battle.battle_time, cutoffMinutes);
+        return battleDateKey === scheduledDateKey;
+      });
+
+      // If no battles match the exact date, use all candidates
+      const battleCandidates = battlesByDate.length > 0 ? battlesByDate : candidateBattles;
+
+      // Use selectBestBattle for disambiguation (if multiple)
+      if (battleCandidates.length === 1) {
+        return battleCandidates[0];
+      }
+
+      // Select best battle using scoring algorithm
+      const selected = selectBestBattle(
+        battleCandidates,
+        scheduledFrom,
+        scheduledTo,
+        cutoffMinutes,
+        3  // Default best_of value (can be enhanced to get from scheduled_match)
+      );
+
+      if (selected) {
+        // Console logging for disambiguation decisions
+        console.log(`[Battle Disambiguation] Match ${scheduledMatchId}:`, {
+          player_id: playerId,
+          scheduled_date: scheduledDateKey,
+          candidates_total: candidateBattles.length,
+          candidates_by_date: battleCandidates.length,
+          selected_battle_id: selected.battle.battle_id,
+          selected_score: selected.score.total,
+          decision_reason: selected.reason,
+          score_breakdown: selected.score.breakdown,
+          alternatives: selected.alternatives.map(alt => ({
+            battle_id: alt.battle_id,
+            time: alt.battle_time,
+            score: alt.score.total
+          }))
+        });
+      }
+
+      return selected?.battle || null;
     } catch (error) {
       console.error("Error finding available battle:", error);
       return null;
