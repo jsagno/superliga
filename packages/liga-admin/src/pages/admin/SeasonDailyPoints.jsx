@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { getBattleDateKey } from "../../lib/battleDateUtils";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -9,22 +10,6 @@ function formatDate(dateStr) {
   const day = String(d.getUTCDate()).padStart(2, "0");
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
   return `${day}/${month}`;
-}
-
-function getDateKey(timestamptz) {
-  // Convertir timestamp a fecha del "día del juego"
-  // Las batallas antes de 09:50 UTC son del día anterior
-  if (!timestamptz) return null;
-  
-  const gameTime = new Date(timestamptz);
-  // Restar 9h 50min para obtener el día del juego
-  gameTime.setUTCMinutes(gameTime.getUTCMinutes() - 590);
-  
-  // Usar UTC para la fecha (no local)
-  const yyyy = gameTime.getUTCFullYear();
-  const mm = String(gameTime.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(gameTime.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 function isSameDay(date1, date2) {
@@ -63,6 +48,7 @@ export default function SeasonDailyPoints() {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [zones, setZones] = useState([]);
+  const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(590);
 
   // Filtros
   const [searchPlayer, setSearchPlayer] = useState("");
@@ -79,7 +65,7 @@ export default function SeasonDailyPoints() {
     // 1. Cargar temporada
     const { data: seasonData, error: seasonErr } = await supabase
       .from("season")
-      .select("season_id, description, season_start_at, season_end_at, duel_start_date")
+      .select("season_id, description, season_start_at, season_end_at, duel_start_date, battle_cutoff_minutes")
       .eq("season_id", seasonId)
       .maybeSingle();
 
@@ -90,6 +76,7 @@ export default function SeasonDailyPoints() {
     }
 
     setSeason(seasonData);
+    setBattleCutoffMinutes(seasonData?.battle_cutoff_minutes ?? 590);
 
     // 2. Cargar todos los scheduled_match con sus batallas y resultados
     let query = supabase
@@ -164,7 +151,7 @@ export default function SeasonDailyPoints() {
         
         console.log(`Batallas directas del jugador en temporada: ${battlesInSeason.length}`);
         battlesInSeason.forEach((b, idx) => {
-          const dateKey = getDateKey(b.battle_time);
+          const dateKey = getBattleDateKey(b.battle_time, battleCutoffMinutes);
           console.log(`  [${idx + 1}] ${dateKey} - ${b.api_game_mode} - ${b.battle_time}`);
         });
       }
@@ -274,7 +261,7 @@ export default function SeasonDailyPoints() {
       if (m.linked_battles && m.linked_battles.length > 0 && m.linked_battles[0].battle) {
         const battleTime = m.linked_battles[0].battle.battle_time;
         if (battleTime) {
-          const dateKey = getDateKey(battleTime);
+          const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
           // Solo incluir fechas dentro del rango de la temporada
           if (dateKey && dateKey >= seasonStartDate && dateKey <= seasonEndDate) {
             datesSet.add(dateKey);
@@ -302,7 +289,7 @@ export default function SeasonDailyPoints() {
       const battleTime = match.linked_battles[0].battle.battle_time;
       if (!battleTime) return;
 
-      const dateKey = getDateKey(battleTime);
+      const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
       
       // Procesar player_a (único jugador que nos interesa en CW_DAILY)
       if (match.player_a_id) {
@@ -391,7 +378,7 @@ export default function SeasonDailyPoints() {
       const battleTime = match.linked_battles[0].battle.battle_time;
       if (!battleTime) return;
       
-      const dateKey = getDateKey(battleTime);
+      const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
       if (!dateKey) return;
       
       if (match.player_a_id) {
