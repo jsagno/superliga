@@ -21,7 +21,7 @@ function fmtDateRange(season) {
   const end =
     season?.season_end_at
       ? new Date(season.season_end_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })
-      : (season?.ladder_start_date ? fmtDateShort(season.ladder_start_date) : "");
+      : (season?.duel_end_date ? fmtDateShort(season.duel_end_date) : (season?.ladder_start_date ? fmtDateShort(season.ladder_start_date) : ""));
 
   if (start && end) return `${start} - ${end}`;
   return start || end || "";
@@ -56,7 +56,7 @@ export default function SeasonsList() {
   const [seasons, setSeasons] = useState([]);
   const [generatingDuels, setGeneratingDuels] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
-  const [progressInfo, setProgressInfo] = useState({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+  const [progressInfo, setProgressInfo] = useState({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
 
   async function load() {
     setLoading(true);
@@ -64,7 +64,7 @@ export default function SeasonsList() {
     // Join era description
     const { data, error } = await supabase
       .from("season")
-      .select("season_id, era_id, description, status, duel_start_date, ladder_start_date, season_start_at, season_end_at, created_at, era:era_id(description)")
+      .select("season_id, era_id, description, status, duel_start_date, duel_end_date, ladder_start_date, season_start_at, season_end_at, created_at, era:era_id(description)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -112,34 +112,43 @@ export default function SeasonsList() {
   }
 
   async function generateDailyDuels(seasonId) {
-    if (!confirm("¿Generar batallas de duelo diario (CW_Duel_1v1) para todos los jugadores de esta temporada?\n\nSolo se crearán las batallas pendientes que no existan.")) {
+    if (!confirm("¿Reconciliar duelos diarios (CW_Duel_1v1) para todos los jugadores de esta temporada?\n\nSe crearán las batallas pendientes faltantes y se cancelarán las pendientes fuera del rango válido.")) {
       return;
     }
 
     setGeneratingDuels(true);
 
     try {
-      // 1. Obtener las fechas de la temporada
+      const dateKey = (date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      // 1. Obtener las fechas de duelo de la temporada
       const { data: seasonData, error: seasonError } = await supabase
         .from("season")
-        .select("season_start_at, season_end_at")
+        .select("duel_start_date, duel_end_date")
         .eq("season_id", seasonId)
         .single();
 
       if (seasonError) throw seasonError;
 
-      if (!seasonData?.season_start_at || !seasonData?.season_end_at) {
-        alert("La temporada debe tener fechas de inicio y fin configuradas");
+      if (!seasonData?.duel_start_date || !seasonData?.duel_end_date) {
+        alert("La temporada debe tener Duel Start Date y Duel End Date configuradas");
         setGeneratingDuels(false);
         return;
       }
 
-      // Normalizar fechas para evitar problemas de timezone
-      // Extraer solo la parte de fecha (YYYY-MM-DD) y crear fecha local
-      const seasonStartStr = seasonData.season_start_at.split('T')[0];
-      const seasonEndStr = seasonData.season_end_at.split('T')[0];
-      const seasonStart = new Date(seasonStartStr + "T00:00:00");
-      const seasonEnd = new Date(seasonEndStr + "T23:59:59");
+      const seasonStart = new Date(`${seasonData.duel_start_date}T00:00:00`);
+      const seasonEnd = new Date(`${seasonData.duel_end_date}T23:59:59`);
+
+      if (seasonStart > seasonEnd) {
+        alert("Duel End Date no puede ser anterior a Duel Start Date");
+        setGeneratingDuels(false);
+        return;
+      }
 
       // 2. Obtener todas las zonas de la temporada
       const { data: zones, error: zonesError } = await supabase
@@ -157,20 +166,12 @@ export default function SeasonsList() {
 
       let totalCreated = 0;
       let totalSkipped = 0;
+      let totalCanceled = 0;
       let totalPlayers = 0;
       let processedPlayers = 0;
+      const zoneAssignments = [];
 
-      // Contar total de jugadores para el progreso
-      for (const zone of zones) {
-        const { data: countData } = await supabase
-          .from("season_zone_team_player")
-          .select("player_id", { count: 'exact', head: true })
-          .eq("zone_id", zone.zone_id)
-          .not("start_date", "is", null);
-        totalPlayers += countData?.length || 0;
-      }
-
-      // 3. Para cada zona, obtener jugadores asignados con sus fechas
+      // 3. Obtener asignaciones por zona
       for (const zone of zones) {
         const { data: assignments, error: assignError } = await supabase
           .from("season_zone_team_player")
@@ -183,9 +184,15 @@ export default function SeasonsList() {
           continue;
         }
 
-        if (!assignments || assignments.length === 0) continue;
+        const safeAssignments = assignments || [];
+        totalPlayers += safeAssignments.length;
+        zoneAssignments.push({ zone, assignments: safeAssignments });
+      }
 
-        // 4. Para cada jugador, crear batallas diarias respetando su período de actividad
+      // 4. Para cada jugador, crear faltantes y cancelar pendientes fuera de rango
+      for (const { zone, assignments } of zoneAssignments) {
+        if (assignments.length === 0) continue;
+
         for (const assignment of assignments) {
           processedPlayers++;
           const playerName = assignment.player?.nick || assignment.player?.name || 'Desconocido';
@@ -196,55 +203,62 @@ export default function SeasonsList() {
             zone: zone.name,
             player: playerName,
             created: totalCreated,
-            skipped: totalSkipped
+            skipped: totalSkipped,
+            canceled: totalCanceled
           });
           
-          // Normalizar fechas del jugador para evitar problemas de timezone
           const playerStartStr = assignment.start_date.split('T')[0];
           const playerEndStr = assignment.end_date ? assignment.end_date.split('T')[0] : null;
-          const playerStart = new Date(playerStartStr + "T00:00:00");
-          const playerEnd = playerEndStr ? new Date(playerEndStr + "T23:59:59") : seasonEnd;
+          const playerStart = new Date(`${playerStartStr}T00:00:00`);
+          const playerEnd = playerEndStr ? new Date(`${playerEndStr}T23:59:59`) : seasonEnd;
 
-          // El rango efectivo es desde max(seasonStart, playerStart) hasta min(seasonEnd, playerEnd)
           const effectiveStart = playerStart > seasonStart ? playerStart : seasonStart;
           const effectiveEnd = playerEnd < seasonEnd ? playerEnd : seasonEnd;
 
-          // Si el jugador no está activo en ningún momento de la temporada, saltar
-          if (effectiveStart > effectiveEnd) continue;
+          const expectedDays = new Set();
+          if (effectiveStart <= effectiveEnd) {
+            const d = new Date(effectiveStart);
+            while (d <= effectiveEnd) {
+              expectedDays.add(dateKey(d));
+              d.setDate(d.getDate() + 1);
+            }
+          }
 
-          // Crear una batalla por cada día en el rango efectivo
-          const currentDate = new Date(effectiveStart);
-          
-          while (currentDate <= effectiveEnd) {
-            const scheduledFrom = new Date(currentDate);
+          const { data: existingRows, error: existingError } = await supabase
+            .from("scheduled_match")
+            .select("scheduled_match_id, scheduled_from, status")
+            .eq("season_id", seasonId)
+            .eq("zone_id", zone.zone_id)
+            .eq("player_a_id", assignment.player_id)
+            .eq("type", "CW_DAILY");
+
+          if (existingError) {
+            console.error(`Error getting existing matches for ${playerName}:`, existingError);
+            continue;
+          }
+
+          const existingByDay = new Map();
+          (existingRows || []).forEach((row) => {
+            const rowDay = dateKey(new Date(row.scheduled_from));
+            if (!existingByDay.has(rowDay)) {
+              existingByDay.set(rowDay, []);
+            }
+            existingByDay.get(rowDay).push(row);
+          });
+
+          for (const day of expectedDays) {
+            const scheduledFrom = new Date(`${day}T00:00:00`);
             scheduledFrom.setHours(0, 0, 0, 0);
             
-            const scheduledTo = new Date(currentDate);
+            const scheduledTo = new Date(`${day}T00:00:00`);
             scheduledTo.setHours(23, 59, 59, 999);
 
-            const deadlineAt = new Date(currentDate);
+            const deadlineAt = new Date(`${day}T00:00:00`);
             deadlineAt.setHours(23, 59, 59, 999);
 
-            // Verificar si ya existe una batalla para este jugador en este día
-            const { data: existing, error: checkError } = await supabase
-              .from("scheduled_match")
-              .select("scheduled_match_id")
-              .eq("season_id", seasonId)
-              .eq("zone_id", zone.zone_id)
-              .eq("player_a_id", assignment.player_id)
-              .eq("type", "CW_DAILY")
-              .gte("scheduled_from", scheduledFrom.toISOString())
-              .lte("scheduled_from", scheduledTo.toISOString())
-              .maybeSingle();
-
-            if (checkError && checkError.code !== 'PGRST116') {
-              console.error("Error checking existing match:", checkError);
-            }
-
-            if (existing) {
+            if (existingByDay.has(day)) {
               totalSkipped++;
             } else {
-              // Crear la batalla
               const { error: insertError } = await supabase
                 .from("scheduled_match")
                 .insert({
@@ -269,25 +283,42 @@ export default function SeasonsList() {
                 setProgressInfo(prev => ({ ...prev, created: totalCreated }));
               }
             }
+          }
 
-            // Siguiente día
-            currentDate.setDate(currentDate.getDate() + 1);
+          for (const [rowDay, rowsForDay] of existingByDay.entries()) {
+            if (expectedDays.has(rowDay)) continue;
+
+            for (const row of rowsForDay) {
+              if (row.status !== "PENDING") continue;
+
+              const { error: cancelError } = await supabase
+                .from("scheduled_match")
+                .update({ status: "CANCELED" })
+                .eq("scheduled_match_id", row.scheduled_match_id);
+
+              if (cancelError) {
+                console.error(`Error canceling out-of-range match ${row.scheduled_match_id}:`, cancelError);
+              } else {
+                totalCanceled++;
+                setProgressInfo(prev => ({ ...prev, canceled: totalCanceled }));
+              }
+            }
           }
         }
       }
 
-      setProgressInfo({ current: totalPlayers, total: totalPlayers, zone: 'Completado', player: '', created: totalCreated, skipped: totalSkipped });
+      setProgressInfo({ current: totalPlayers, total: totalPlayers, zone: 'Completado', player: '', created: totalCreated, skipped: totalSkipped, canceled: totalCanceled });
       
       setTimeout(() => {
-        alert(`Generación completada:\n\n✅ ${totalCreated} batallas creadas\n⏭️ ${totalSkipped} batallas ya existían`);
+        alert(`Reconciliación completada:\n\n✅ ${totalCreated} batallas creadas\n⏭️ ${totalSkipped} batallas ya existían\n🚫 ${totalCanceled} batallas canceladas fuera de rango`);
         setGeneratingDuels(false);
-        setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+        setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
       }, 500);
     } catch (error) {
       console.error("Error generating daily duels:", error);
       alert(`Error al generar batallas: ${error.message}`);
       setGeneratingDuels(false);
-      setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+      setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
     }
   }
 
@@ -299,7 +330,7 @@ export default function SeasonsList() {
     if (!confirm(confirmMsg)) return;
 
     setAutoLinking(true);
-    setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+    setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
 
     try {
       // 1. Obtener todos los scheduled_match CW_DAILY PENDING
@@ -433,18 +464,18 @@ export default function SeasonsList() {
         linked++;
       }
 
-      setProgressInfo({ current: total, total: total, zone: 'Completado', player: '', created: linked, skipped: skipped });
+      setProgressInfo({ current: total, total: total, zone: 'Completado', player: '', created: linked, skipped: skipped, canceled: 0 });
 
       setTimeout(() => {
         alert(`Auto-vinculación completada:\n\n✅ ${linked} batallas vinculadas\n⏭️ ${skipped} omitidas (sin batalla disponible o error)`);
         setAutoLinking(false);
-        setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+        setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
       }, 500);
     } catch (error) {
       console.error("Error auto-linking battles:", error);
       alert(`Error al auto-vincular batallas: ${error.message}`);
       setAutoLinking(false);
-      setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0 });
+      setProgressInfo({ current: 0, total: 0, zone: '', player: '', created: 0, skipped: 0, canceled: 0 });
     }
   }
 
@@ -702,6 +733,15 @@ export default function SeasonsList() {
                 <span className="font-medium">Omitidas:</span>
                 <span>{progressInfo.skipped}</span>
               </div>
+              {generatingDuels && (
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <span className="material-symbols-outlined text-base">
+                    cancel
+                  </span>
+                  <span className="font-medium">Canceladas:</span>
+                  <span>{progressInfo.canceled || 0}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
