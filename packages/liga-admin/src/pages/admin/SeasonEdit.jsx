@@ -57,6 +57,9 @@ export default function SeasonEdit() {
   const [seasonStartAt, setSeasonStartAt] = useState("");
   const [seasonEndAt, setSeasonEndAt] = useState("");
 
+  const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(590);
+  const [battleCutoffTzOffset, setBattleCutoffTzOffset] = useState("-03:00");
+
   const title = useMemo(() => (isNew ? "Nueva Temporada" : "Editar Temporada"), [isNew]);
 
   useEffect(() => {
@@ -87,6 +90,8 @@ export default function SeasonEdit() {
         setLadderStartDate("");
         setSeasonStartAt("");
         setSeasonEndAt("");
+        setBattleCutoffMinutes(590);
+        setBattleCutoffTzOffset("-03:00");
         setLoading(false);
         return;
       }
@@ -94,7 +99,7 @@ export default function SeasonEdit() {
       // load season
       const { data: sData, error: sErr } = await supabase
         .from("season")
-        .select("season_id,era_id,description,status,duel_start_date,duel_end_date,ladder_start_date,season_start_at,season_end_at")
+        .select("season_id,era_id,description,status,duel_start_date,duel_end_date,ladder_start_date,season_start_at,season_end_at,battle_cutoff_minutes,battle_cutoff_tz_offset")
         .eq("season_id", seasonId)
         .maybeSingle();
 
@@ -114,6 +119,9 @@ export default function SeasonEdit() {
 
       setSeasonStartAt(toDateTimeLocalInput(sData?.season_start_at));
       setSeasonEndAt(toDateTimeLocalInput(sData?.season_end_at));
+
+      setBattleCutoffMinutes(sData?.battle_cutoff_minutes ?? 590);
+      setBattleCutoffTzOffset(sData?.battle_cutoff_tz_offset ?? "-03:00");
 
       setLoading(false);
     })();
@@ -148,6 +156,8 @@ export default function SeasonEdit() {
       ladder_start_date: ladderStartDate || null,
       season_start_at: fromDateTimeLocalToIso(seasonStartAt),
       season_end_at: fromDateTimeLocalToIso(seasonEndAt),
+      battle_cutoff_minutes: battleCutoffMinutes,
+      battle_cutoff_tz_offset: battleCutoffTzOffset,
     };
 
     if (isNew) {
@@ -348,6 +358,64 @@ export default function SeasonEdit() {
                     onChange={(e) => setSeasonEndAt(e.target.value)}
                     className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
                   />
+                </div>
+
+                {/* Battle Cutoff Configuration */}
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-2">
+                  <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold leading-normal ml-1 mb-3">
+                    Configuración de Auto-Vincular Batallas
+                  </p>
+
+                  <div className="flex flex-col w-full gap-4">
+                    {/* Battle Cutoff Minutes */}
+                    <div className="flex flex-col w-full gap-2">
+                      <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold leading-normal ml-1">
+                        Cutoff en Minutos (0-1440)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="1440"
+                          value={battleCutoffMinutes}
+                          onChange={(e) => setBattleCutoffMinutes(Math.max(0, Math.min(1440, parseInt(e.target.value) || 0)))}
+                          className="flex flex-1 h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
+                        />
+                        <div className="flex flex-col gap-1">
+                          <p className="text-slate-600 dark:text-slate-400 text-xs font-medium">
+                            {Math.floor(battleCutoffMinutes / 60)}:{String(battleCutoffMinutes % 60).padStart(2, '0')} UTC
+                          </p>
+                          <p className="text-slate-500 dark:text-slate-500 text-xs">
+                            (antes del cutoff = día anterior)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Battle Cutoff Timezone */}
+                    <div className="flex flex-col w-full gap-2">
+                      <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold leading-normal ml-1">
+                        Zona Horaria (para mostrar)
+                      </label>
+                      <select
+                        value={battleCutoffTzOffset}
+                        onChange={(e) => setBattleCutoffTzOffset(e.target.value)}
+                        className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
+                      >
+                        <option value="-05:00">Argentina Oriental (UTC-05:00)</option>
+                        <option value="-04:00">Argentina Central (UTC-04:00)</option>
+                        <option value="-03:00">Argentina Estándar (UTC-03:00)</option>
+                        <option value="-02:00">UTC-02:00</option>
+                        <option value="-01:00">UTC-01:00</option>
+                        <option value="+00:00">UTC (Hora de Greenwich)</option>
+                        <option value="+01:00">UTC+01:00</option>
+                        <option value="+02:00">UTC+02:00</option>
+                      </select>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 ml-1">
+                        Se usa para mostrar la hora en la interfaz de administrador
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 ml-1">
