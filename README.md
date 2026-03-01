@@ -241,12 +241,52 @@ If you're migrating from separate repositories, see [scripts/migrate-to-monorepo
 
 See [docs/openspec/architecture/](./docs/openspec/architecture/) for detailed architecture documentation.
 
+## 🔒 Git Hooks
+
+The project includes automated git hooks to enforce code quality:
+
+### Pre-Commit Hook
+- **Purpose**: Prevents accidental commit of credentials and secrets
+- **Checks**: Scans for API tokens, passwords, private keys
+- **Status**: ✅ Already installed
+
+### Pre-Push Hook
+- **Purpose**: Enforces Playwright E2E tests for UI changes
+- **Checks**: Ensures UI components/pages have corresponding tests
+- **Installation**: Run `bash scripts/install-git-hooks.sh`
+
+### Installation
+
+```bash
+# From repository root
+bash scripts/install-git-hooks.sh
+```
+
+### Bypassing Hooks (Not Recommended)
+
+```bash
+# Skip pre-commit (credential check)
+SKIP_PRE_COMMIT_HOOK=1 git commit -m "..."
+
+# Skip pre-push (UI test enforcement)
+SKIP_PRE_PUSH_HOOK=1 git push
+```
+
+**Important**: Only bypass hooks when you understand the implications. The hooks exist to protect code quality and security.
+
 ## 🧪 Testing
 
 ```bash
-# Liga Admin
+# Liga Admin - Unit Tests
 cd packages/liga-admin
-npm run test
+npm run test:unit
+
+# Liga Admin - E2E Tests
+cd packages/liga-admin
+npm run test:e2e
+
+# Liga Admin - Check UI Test Coverage
+npm run check:ui-e2e
 
 # Cron
 cd packages/cron
