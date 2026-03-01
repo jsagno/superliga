@@ -27,10 +27,28 @@ If tied, all tied teams receive the bonus point.
 
 ### Rounds and Dates
 
-The season is split into 4 rounds:
+For daily points visualization and round grouping, seasons use configurable
+`days_per_round` (default: 4) defined per season.
 
-- Rounds 1 to 3: 4 dates each.
-- Round 4 (final): 5 dates.
+- Round number is computed by date index and `days_per_round`.
+- Final rounds may be partial if remaining dates are fewer than `days_per_round`.
+
+### Consecutive Miss Penalties (Daily Points)
+
+If a player has a scheduled daily duel date and does not complete it, penalties
+apply by consecutive streak:
+
+- 1st consecutive miss: `-1`
+- 2nd consecutive miss: `-2`
+- 3rd consecutive miss: `-5`
+- 4th+ consecutive miss: `-10`
+
+Rules:
+
+- Streak resets when the player completes a daily duel with result.
+- Only dates within the player's active window (`start_date`/`end_date`) apply.
+- Future dates do not count toward penalties.
+- Players are removed from the daily points grid after 4 consecutive misses.
 
 ### Team League Cup Points
 

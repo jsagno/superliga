@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:unit": "vitest run src/lib/dailyPointsUtils.test.js",
     "test:e2e": "playwright test tests/e2e",
     "test:e2e:ui": "playwright test tests/e2e --ui",
     "test:e2e:serve": "npm run build && playwright test tests/e2e --config=playwright.preview.config.js"
@@ -27,6 +29,9 @@
     "@playwright/test": "^1.51.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
@@ -35,8 +40,10 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^3.2.4"
   }
 }

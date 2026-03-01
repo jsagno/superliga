@@ -1,41 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { getBattleDateKey } from "../../lib/battleDateUtils";
+import { buildDailyPointsGrid } from "../../lib/dailyPointsUtils";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
-  // Usar UTC para evitar desplazamientos por timezone
-  const d = new Date(dateStr + "T00:00:00Z");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   return `${day}/${month}`;
-}
-
-function isSameDay(date1, date2) {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth() === d2.getMonth() &&
-         d1.getDate() === d2.getDate();
-}
-
-function isPlayerActiveOnDate(player, dateStr) {
-  const checkDate = new Date(dateStr);
-  
-  // Si tiene start_date, verificar que no sea antes
-  if (player.start_date) {
-    const startDate = new Date(player.start_date);
-    if (checkDate < startDate) return false;
-  }
-  
-  // Si tiene end_date, verificar que no sea después
-  if (player.end_date) {
-    const endDate = new Date(player.end_date);
-    if (checkDate > endDate) return false;
-  }
-  
-  return true;
 }
 
 export default function SeasonDailyPoints() {
@@ -50,27 +23,25 @@ export default function SeasonDailyPoints() {
   const [zones, setZones] = useState([]);
   const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(590);
 
-  // Filtros
   const [searchPlayer, setSearchPlayer] = useState("");
   const [filterTeamId, setFilterTeamId] = useState("");
   const [filterZoneId, setFilterZoneId] = useState("");
 
   useEffect(() => {
     loadData();
-  }, [seasonId]);
+  }, [seasonId, filterZoneId]);
 
   async function loadData() {
     setLoading(true);
 
-    // 1. Cargar temporada
     const { data: seasonData, error: seasonErr } = await supabase
       .from("season")
-      .select("season_id, description, season_start_at, season_end_at, duel_start_date, battle_cutoff_minutes")
+      .select("season_id,description,season_start_at,season_end_at,duel_start_date,battle_cutoff_minutes,days_per_round")
       .eq("season_id", seasonId)
       .maybeSingle();
 
     if (seasonErr) {
-      alert("Error cargando temporada: " + seasonErr.message);
+      alert(`Error cargando temporada: ${seasonErr.message}`);
       setLoading(false);
       return;
     }
@@ -78,110 +49,55 @@ export default function SeasonDailyPoints() {
     setSeason(seasonData);
     setBattleCutoffMinutes(seasonData?.battle_cutoff_minutes ?? 590);
 
-    // 2. Cargar todos los scheduled_match con sus batallas y resultados
-    let query = supabase
-      .from("scheduled_match")
-      .select(`
-        scheduled_match_id,
-        type,
-        player_a_id,
-        player_b_id,
-        linked_battles:scheduled_match_battle_link!scheduled_match_id(
-          battle:battle!battle_id(
-            battle_time
-          )
-        ),
-        result:scheduled_match_result!scheduled_match_id(
-          points_a
-        ),
-        scheduled_from,
-        scheduled_to
-      `)
-      .eq("season_id", seasonId);
-
-    // Solo filtrar por zona si está seleccionada
-    if (filterZoneId) {
-      query = query.eq("zone_id", filterZoneId);
-    }
-
-    const { data: matchesData, error: matchesErr } = await query.eq("type", "CW_DAILY");
-
-    if (matchesErr) {
-      alert("Error cargando partidos: " + matchesErr.message);
-      setLoading(false);
-      return;
-    }
-
-    console.log("Total scheduled_match cargados:", matchesData?.length);
-    console.log("Matches con linked_battles:", matchesData?.filter(m => m.linked_battles?.length > 0).length);
-    
-    
-    // DEBUG: Ver todos los matches del jugador debug
-    const debugPlayerId = "ff82c140-7a65-4ad6-a479-3ed992d97e31";
-    const debugMatches = matchesData?.filter(m => m.player_a_id === debugPlayerId);
-    console.log(debugMatches);
-    console.log(`Matches del jugador debug: ${debugMatches?.length}`);
-    console.log("  - Con linked_battles:", debugMatches?.filter(m => m.linked_battles?.length > 0).length);
-    console.log("  - Sin linked_battles:", debugMatches?.filter(m => !m.linked_battles || m.linked_battles.length === 0).length);
-    
-    // DEBUG: Verificar si hay batallas del jugador que NO están en scheduled_match
-    console.log("\n🔍 Buscando todas las batallas del jugador en el rango de fechas...");
-    
-    // Primero obtener los battle_ids del jugador
-    const { data: playerBattleIds, error: pbErr } = await supabase
-      .from("battle_round_player")
-      .select("battle_id")
-      .eq("player_id", debugPlayerId);
-    
-    if (!pbErr && playerBattleIds && playerBattleIds.length > 0) {
-      // Luego cargar las batallas con esos IDs
-      const battleIds = playerBattleIds.map(pb => pb.battle_id);
-      const { data: battles, error: bErr } = await supabase
-        .from("battle")
-        .select("battle_id, battle_time, api_game_mode")
-        .in("battle_id", battleIds.slice(0, 1000)) // Limitar a 1000 para evitar error de URL
-        .order("battle_time", { ascending: true });
-      
-      if (!bErr && battles) {
-        const seasonStart = seasonData.duel_start_date || seasonData.season_start_at;
-        const seasonEnd = seasonData.season_end_at;
-        
-        const battlesInSeason = battles
-          .filter(b => b.battle_time >= seasonStart && b.battle_time <= seasonEnd);
-        
-        console.log(`Batallas directas del jugador en temporada: ${battlesInSeason.length}`);
-        battlesInSeason.forEach((b, idx) => {
-          const dateKey = getBattleDateKey(b.battle_time, battleCutoffMinutes);
-          console.log(`  [${idx + 1}] ${dateKey} - ${b.api_game_mode} - ${b.battle_time}`);
-        });
-      }
-    }
-
-    setMatches(matchesData || []);
-
-    // 3. Cargar zonas de la temporada
     const { data: zonesData, error: zonesErr } = await supabase
       .from("season_zone")
       .select("zone_id, name")
       .eq("season_id", seasonId);
 
     if (zonesErr) {
-      alert("Error cargando zonas: " + zonesErr.message);
+      alert(`Error cargando zonas: ${zonesErr.message}`);
       setLoading(false);
       return;
     }
-    else{
-      setZones(zonesData);
+
+    setZones(zonesData || []);
+
+    let matchQuery = supabase
+      .from("scheduled_match")
+      .select(`
+        scheduled_match_id,
+        type,
+        zone_id,
+        player_a_id,
+        scheduled_from,
+        scheduled_to,
+        result:scheduled_match_result!scheduled_match_id(
+          points_a
+        )
+      `)
+      .eq("season_id", seasonId)
+      .eq("type", "CW_DAILY");
+
+    if (filterZoneId) {
+      matchQuery = matchQuery.eq("zone_id", filterZoneId);
     }
 
-    const zoneIds = (zonesData || []).map(z => z.zone_id);
+    const { data: matchesData, error: matchesErr } = await matchQuery;
 
-    // 4. Cargar asignaciones de jugadores a equipos (season_zone_team_player)
-    let queryAssignments = supabase
+    if (matchesErr) {
+      alert(`Error cargando partidos: ${matchesErr.message}`);
+      setLoading(false);
+      return;
+    }
+
+    setMatches(matchesData || []);
+
+    let assignmentQuery = supabase
       .from("season_zone_team_player")
       .select(`
         player_id,
         team_id,
+        zone_id,
         jersey_no,
         start_date,
         end_date,
@@ -194,51 +110,48 @@ export default function SeasonDailyPoints() {
           name,
           logo
         )
-      `)
-    // Solo filtrar por zona si está seleccionada
+      `);
+
     if (filterZoneId) {
-      queryAssignments = queryAssignments.eq("zone_id", filterZoneId);
-    }
-    else{
-      queryAssignments = queryAssignments.in("zone_id", zoneIds);
+      assignmentQuery = assignmentQuery.eq("zone_id", filterZoneId);
+    } else {
+      const zoneIds = (zonesData || []).map((zone) => zone.zone_id);
+      if (zoneIds.length > 0) {
+        assignmentQuery = assignmentQuery.in("zone_id", zoneIds);
+      }
     }
 
-    const { data: assignmentsData, error: assignmentsErr } = await queryAssignments
-      
+    const { data: assignmentsData, error: assignmentsErr } = await assignmentQuery;
 
     if (assignmentsErr) {
-      alert("Error cargando asignaciones: " + assignmentsErr.message);
+      alert(`Error cargando asignaciones: ${assignmentsErr.message}`);
       setLoading(false);
       return;
     }
 
-    // Crear array de jugadores únicos con su equipo (tomando el más reciente)
     const playerMap = {};
-    (assignmentsData || []).forEach(assignment => {
-      const playerId = assignment.player_id;
-      if (!playerMap[playerId]) {
-        playerMap[playerId] = {
-          player_id: playerId,
-          nickname: assignment.player?.nick || "Desconocido",
-          team: assignment.team,
-          jersey_no: assignment.jersey_no,
-          start_date: assignment.start_date,
-          end_date: assignment.end_date
-        };
-      }
+    (assignmentsData || []).forEach((assignment) => {
+      if (playerMap[assignment.player_id]) return;
+
+      playerMap[assignment.player_id] = {
+        player_id: assignment.player_id,
+        nickname: assignment.player?.nick || "Desconocido",
+        team: assignment.team,
+        jersey_no: assignment.jersey_no,
+        start_date: assignment.start_date,
+        end_date: assignment.end_date,
+      };
     });
 
-    const playersArray = Object.values(playerMap);
-    setPlayers(playersArray);
+    setPlayers(Object.values(playerMap));
 
-    // 5. Cargar equipos para el filtro
     const { data: teamsData, error: teamsErr } = await supabase
       .from("team")
       .select("team_id, name")
       .order("name", { ascending: true });
 
     if (teamsErr) {
-      alert("Error cargando equipos: " + teamsErr.message);
+      alert(`Error cargando equipos: ${teamsErr.message}`);
     } else {
       setTeams(teamsData || []);
     }
@@ -246,239 +159,21 @@ export default function SeasonDailyPoints() {
     setLoading(false);
   }
 
-  
+  // `buildDailyPointsGrid` centralizes round grouping and consecutive miss penalties.
+  // Example streak: miss, miss, play, miss => -1, -2, reset, -1; at 4 misses player is excluded.
+  const gridData = useMemo(
+    () =>
+      buildDailyPointsGrid({
+        season,
+        matches,
+        players,
+        searchPlayer,
+        filterTeamId,
+        battleCutoffMinutes,
+      }),
+    [season, matches, players, searchPlayer, filterTeamId, battleCutoffMinutes]
+  );
 
-  // Calcular datos de la grilla
-  const gridData = useMemo(() => {
-    if (!season || matches.length === 0) return { dates: [], rows: [] };
-
-    // Obtener todas las fechas únicas de las batallas
-    const datesSet = new Set();
-    const seasonStartDate = season.duel_start_date || season.season_start_at;
-    const seasonEndDate = season.season_end_at;
-
-    matches.forEach(m => {
-      if (m.linked_battles && m.linked_battles.length > 0 && m.linked_battles[0].battle) {
-        const battleTime = m.linked_battles[0].battle.battle_time;
-        if (battleTime) {
-          const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
-          // Solo incluir fechas dentro del rango de la temporada
-          if (dateKey && dateKey >= seasonStartDate && dateKey <= seasonEndDate) {
-            datesSet.add(dateKey);
-          }
-        }
-      }
-    });
-
-    const dates = Array.from(datesSet).sort();
-
-    // Crear un mapa de jugador -> fecha -> puntos
-    const playerDatePoints = {};
-
-    // DEBUG: ID del jugador a analizar
-    const debugPlayerId = "ff82c140-7a65-4ad6-a479-3ed992d97e31";
-    const debugBattles = [];
-
-    // Procesar todos los partidos
-    matches.forEach(match => {
-      // Obtener la fecha de la batalla
-      if (!match.linked_battles || match.linked_battles.length === 0 || !match.linked_battles[0].battle) {
-        return; // Sin batalla, saltar
-      }
-
-      const battleTime = match.linked_battles[0].battle.battle_time;
-      if (!battleTime) return;
-
-      const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
-      
-      // Procesar player_a (único jugador que nos interesa en CW_DAILY)
-      if (match.player_a_id) {
-        // DEBUG: Acumular batallas del jugador específico
-        if (match.player_a_id === debugPlayerId) {
-          debugBattles.push({
-            scheduled_match_id: match.scheduled_match_id,
-            battle_time_raw: battleTime,
-            dateKey: dateKey,
-            points_a: match.result?.points_a || "sin resultado",
-            linked_battles_count: match.linked_battles?.length || 0,
-            match: match
-          });
-        }
-
-        if (!playerDatePoints[match.player_a_id]) {
-          playerDatePoints[match.player_a_id] = {};
-        }
-        if (!playerDatePoints[match.player_a_id][dateKey]) {
-          playerDatePoints[match.player_a_id][dateKey] = { points: 0, matches: 0 };
-        }
-
-        // Si hay batalla vinculada, significa que SÍ jugó (tenga o no resultado)
-        playerDatePoints[match.player_a_id][dateKey].matches += 1;
-
-        // scheduled_match_result es un objeto único, no un array
-        if (match.result) {
-          // Hay resultado registrado, sumar puntos
-          playerDatePoints[match.player_a_id][dateKey].points += match.result.points_a || 0;
-        }
-      }
-    });
-
-    // DEBUG: Mostrar batallas ordenadas por fecha
-    // Solo mostrar si se está filtrando por el jugador específico
-    const debugPlayer = players.find(p => p.player_id === debugPlayerId);
-    const showDebug = debugPlayer && searchPlayer && 
-                     debugPlayer.nickname.toLowerCase().includes(searchPlayer.toLowerCase());
-    
-    if (debugBattles.length > 0 && showDebug) {
-      debugBattles.sort((a, b) => a.battle_time_raw.localeCompare(b.battle_time_raw));
-      console.log("=== BATALLAS DEL JUGADOR DEBUG (ordenadas por fecha) ===");
-      console.log(`Total de batallas: ${debugBattles.length}`);
-      
-      // Agrupar por scheduled_match_id para ver duplicados
-      const matchGroups = {};
-      debugBattles.forEach(b => {
-        if (!matchGroups[b.scheduled_match_id]) {
-          matchGroups[b.scheduled_match_id] = [];
-        }
-        matchGroups[b.scheduled_match_id].push(b);
-      });
-      
-      console.log(`\nScheduled matches únicos: ${Object.keys(matchGroups).length}`);
-      console.log("\n--- DETALLE POR BATALLA ---");
-      
-      debugBattles.forEach((b, idx) => {
-        console.log(`\n[${idx + 1}] scheduled_match_id: ${b.scheduled_match_id}`);
-        console.log(`    linked_battles en el match: ${b.linked_battles_count}`);
-        console.log(`    battle_time (raw): ${b.battle_time_raw}`);
-        console.log(`    dateKey calculado: ${b.dateKey}`);
-        console.log(`    points_a: ${b.points_a}`);
-      });
-      
-      // Mostrar duplicados si existen
-      const duplicates = Object.entries(matchGroups).filter(([_, battles]) => battles.length > 1);
-      if (duplicates.length > 0) {
-        console.log("\n⚠️ SCHEDULED_MATCH_IDS DUPLICADOS:");
-        duplicates.forEach(([matchId, battles]) => {
-          console.log(`  ${matchId}: aparece ${battles.length} veces`);
-        });
-      }
-    }
-
-    // Detectar días sin jugar y aplicar penalizaciones
-    // Sistema: -1 primer día, -2 segundo, -5 tercero, -10 cuarto en adelante
-    // IMPORTANTE: Solo aplicar penalizaciones si el jugador NO jugó pero SÍ tenía un partido programado ese día
-    
-    // Primero, identificar qué días tienen partidos programados para cada jugador
-    const playerScheduledDates = {};
-    matches.forEach(match => {
-      if (!match.linked_battles || match.linked_battles.length === 0 || !match.linked_battles[0].battle) {
-        return;
-      }
-      
-      const battleTime = match.linked_battles[0].battle.battle_time;
-      if (!battleTime) return;
-      
-      const dateKey = getBattleDateKey(battleTime, battleCutoffMinutes);
-      if (!dateKey) return;
-      
-      if (match.player_a_id) {
-        if (!playerScheduledDates[match.player_a_id]) {
-          playerScheduledDates[match.player_a_id] = new Set();
-        }
-        playerScheduledDates[match.player_a_id].add(dateKey);
-      }
-    });
-    
-    // Ahora aplicar penalizaciones solo a jugadores que tienen fechas programadas
-    Object.keys(playerScheduledDates).forEach(playerId => {
-      const player = players.find(p => p.player_id === playerId);
-      if (!player) return;
-
-      const scheduledDates = Array.from(playerScheduledDates[playerId]).sort();
-      let consecutiveMissed = 0;
-
-      scheduledDates.forEach((dateKey) => {
-        // Verificar si el jugador estaba activo en esta fecha
-        if (!isPlayerActiveOnDate(player, dateKey)) {
-          return;
-        }
-
-        // Inicializar si no existe
-        if (!playerDatePoints[playerId]) {
-          playerDatePoints[playerId] = {};
-        }
-        
-        const dayData = playerDatePoints[playerId][dateKey];
-        
-        if (!dayData || dayData.matches === 0) {
-          // Día sin jugar (pero tenía partido programado)
-          consecutiveMissed++;
-          
-          let penalty = 0;
-          if (consecutiveMissed === 1) penalty = -1;
-          else if (consecutiveMissed === 2) penalty = -2;
-          else if (consecutiveMissed === 3) penalty = -5;
-          else penalty = -10;
-
-          playerDatePoints[playerId][dateKey] = { points: penalty, matches: 0 };
-        } else {
-          // Jugó, reiniciar contador
-          consecutiveMissed = 0;
-        }
-      });
-    });
-
-    // Crear filas para la grilla
-    const rows = players
-      .filter(p => {
-        // Filtro por nombre
-        if (searchPlayer && !p.nickname.toLowerCase().includes(searchPlayer.toLowerCase())) {
-          return false;
-        }
-        // Filtro por equipo
-        if (filterTeamId && p.team?.team_id !== filterTeamId) {
-          return false;
-        }
-        
-        return true;
-      })
-      .map(player => {
-        const datePoints = dates.map(dateKey => {
-          const dayData = playerDatePoints[player.player_id]?.[dateKey];
-          
-          // Si el jugador no estaba activo, mostrar null
-          if (!isPlayerActiveOnDate(player, dateKey)) {
-            return null;
-          }
-
-          return dayData ? dayData.points : 0;
-        });
-
-        const total = datePoints.reduce((sum, p) => sum + (p || 0), 0);
-
-        return {
-          player_id: player.player_id,
-          nickname: player.nickname,
-          team: player.team?.name || "-",
-          team_id: player.team?.team_id,
-          team_logo: player.team?.logo,
-          jersey_no: player.jersey_no || 99,
-          datePoints,
-          total,
-        };
-      })
-      .sort((a, b) => {
-        // Ordenar por equipo y luego por número de casaca
-        if (a.team !== b.team) {
-          return a.team.localeCompare(b.team);
-        }
-        return a.jersey_no - b.jersey_no;
-      });
-
-    return { dates, rows };
-  }, [season, matches, players, searchPlayer, filterTeamId]);
-
-  // Función para obtener color según puntos
   function getPointsColor(points) {
     if (points === null) return "bg-gray-100 dark:bg-gray-800 text-gray-400";
     if (points < 0) return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-bold";
@@ -498,7 +193,6 @@ export default function SeasonDailyPoints() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#f6f6f8] dark:bg-[#101622]">
-      {/* Header */}
       <div className="sticky top-0 z-20 flex items-center justify-between w-full bg-white dark:bg-[#1c2333] border-b border-slate-200 dark:border-slate-800 px-5 py-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button
@@ -509,39 +203,32 @@ export default function SeasonDailyPoints() {
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight">
-              Resumen Diario de Puntos
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
-              {season?.description}
-            </p>
+            <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight">Resumen Diario de Puntos</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">{season?.description}</p>
           </div>
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="w-full bg-white dark:bg-[#1c2333] border-b border-slate-200 dark:border-slate-800 px-5 py-4">
         <div className="flex flex-wrap gap-3">
-          {/* Buscar jugador */}
           <div className="flex-1 min-w-[200px]">
             <input
               type="text"
               placeholder="Buscar jugador..."
               value={searchPlayer}
-              onChange={(e) => setSearchPlayer(e.target.value)}
+              onChange={(event) => setSearchPlayer(event.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1623] text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] transition-all"
             />
           </div>
 
-          {/* Filtro equipo */}
           <div className="flex-1 min-w-[200px]">
             <select
               value={filterTeamId}
-              onChange={(e) => setFilterTeamId(e.target.value)}
+              onChange={(event) => setFilterTeamId(event.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1623] text-slate-900 dark:text-white focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] transition-all"
             >
               <option value="">Todos los equipos</option>
-              {teams.map(team => (
+              {teams.map((team) => (
                 <option key={team.team_id} value={team.team_id}>
                   {team.name}
                 </option>
@@ -549,25 +236,22 @@ export default function SeasonDailyPoints() {
             </select>
           </div>
 
-
-          {/* Filtro zonas */}
           <div className="flex-1 min-w-[200px]">
             <select
               value={filterZoneId}
-              onChange={(e) => setFilterZoneId(e.target.value)}
+              onChange={(event) => setFilterZoneId(event.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1623] text-slate-900 dark:text-white focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] transition-all"
             >
               <option value="">Todas las zonas</option>
-              {zones.map(zone => (
-                <option key={zone.zone_id} value={zone.name}>
+              {zones.map((zone) => (
+                <option key={zone.zone_id} value={zone.zone_id}>
                   {zone.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Botón limpiar filtros */}
-          {(searchPlayer || filterTeamId) && (
+          {(searchPlayer || filterTeamId || filterZoneId) && (
             <button
               onClick={() => {
                 setSearchPlayer("");
@@ -582,37 +266,54 @@ export default function SeasonDailyPoints() {
         </div>
       </div>
 
-      {/* Grilla */}
       <div className="flex-1 w-full overflow-auto p-5">
         {gridData.rows.length === 0 ? (
           <div className="bg-white dark:bg-[#1c2333] rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center">
-            <p className="text-slate-500 dark:text-slate-400">
-              No hay datos para mostrar con los filtros aplicados.
-            </p>
+            <p className="text-slate-500 dark:text-slate-400">No hay datos para mostrar con los filtros aplicados.</p>
           </div>
         ) : (
           <div className="bg-white dark:bg-[#1c2333] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-[#0f1623] border-b border-slate-200 dark:border-slate-700">
-                    <th className="sticky left-0 z-10 bg-slate-50 dark:bg-[#0f1623] px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700">
+                  <tr className="bg-slate-100 dark:bg-[#162238] border-b border-slate-200 dark:border-slate-700">
+                    <th
+                      rowSpan={2}
+                      className="sticky left-0 z-20 bg-slate-100 dark:bg-[#162238] px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700"
+                    >
                       Jugador
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700">
+                    <th
+                      rowSpan={2}
+                      className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700"
+                    >
                       Equipo
                     </th>
-                    {gridData.dates.map((dateKey, idx) => (
+                    {gridData.rounds.map((round) => (
                       <th
-                        key={idx}
+                        key={`round-${round.number}`}
+                        colSpan={round.dates.length}
+                        className="px-2 py-2 text-center text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700 bg-slate-200/80 dark:bg-slate-700/40 round-header"
+                      >
+                        Ronda {round.number}
+                      </th>
+                    ))}
+                    <th
+                      rowSpan={2}
+                      className="sticky right-0 z-20 bg-slate-100 dark:bg-[#162238] px-4 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-l-2 border-slate-300 dark:border-slate-600"
+                    >
+                      Total
+                    </th>
+                  </tr>
+                  <tr className="bg-slate-50 dark:bg-[#0f1623] border-b border-slate-200 dark:border-slate-700">
+                    {gridData.dates.map((dateKey) => (
+                      <th
+                        key={`date-${dateKey}`}
                         className="px-2 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-200 dark:border-slate-700 min-w-[60px]"
                       >
                         {formatDate(dateKey)}
                       </th>
                     ))}
-                    <th className="sticky right-0 z-10 bg-slate-50 dark:bg-[#0f1623] px-4 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-l-2 border-slate-300 dark:border-slate-600">
-                      Total
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -621,7 +322,7 @@ export default function SeasonDailyPoints() {
                       key={row.player_id}
                       className={[
                         "border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
-                        rowIdx % 2 === 0 ? "bg-white dark:bg-[#1c2333]" : "bg-slate-50/50 dark:bg-[#0f1623]/50"
+                        rowIdx % 2 === 0 ? "bg-white dark:bg-[#1c2333]" : "bg-slate-50/50 dark:bg-[#0f1623]/50",
                       ].join(" ")}
                     >
                       <td className="sticky left-0 z-10 bg-inherit px-4 py-2 text-sm font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
@@ -640,12 +341,12 @@ export default function SeasonDailyPoints() {
                           <span>{row.team}</span>
                         </div>
                       </td>
-                      {row.datePoints.map((points, idx) => (
+                      {row.datePoints.map((points, index) => (
                         <td
-                          key={idx}
+                          key={`${row.player_id}-${index}`}
                           className={[
                             "px-2 py-2 text-center text-sm border-r border-slate-200 dark:border-slate-700",
-                            getPointsColor(points)
+                            getPointsColor(points),
                           ].join(" ")}
                         >
                           {points !== null ? points : "-"}
@@ -663,7 +364,6 @@ export default function SeasonDailyPoints() {
         )}
       </div>
 
-      {/* Leyenda */}
       <div className="w-full bg-white dark:bg-[#1c2333] border-t border-slate-200 dark:border-slate-800 px-5 py-4">
         <div className="flex flex-wrap items-center gap-4 text-xs">
           <span className="text-slate-600 dark:text-slate-400 font-semibold">Leyenda:</span>
@@ -685,12 +385,13 @@ export default function SeasonDailyPoints() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700"></div>
-            <span className="text-slate-600 dark:text-slate-400">Penalización: -1 (1er día), -2 (2do), -5 (3ro), -10 (4to+)</span>
+            <span className="text-slate-600 dark:text-slate-400">Penalización: 1ra falta -1, 2da -2, 3ra -5, 4ta+ -10</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"></div>
             <span className="text-slate-600 dark:text-slate-400">Jugador inactivo</span>
           </div>
+          <span className="text-slate-600 dark:text-slate-400">Los jugadores se excluyen de la grilla tras 4 faltas consecutivas.</span>
         </div>
       </div>
     </div>

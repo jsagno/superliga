@@ -59,6 +59,7 @@ export default function SeasonEdit() {
 
   const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(590);
   const [battleCutoffTzOffset, setBattleCutoffTzOffset] = useState("-03:00");
+  const [daysPerRound, setDaysPerRound] = useState(4);
 
   const title = useMemo(() => (isNew ? "Nueva Temporada" : "Editar Temporada"), [isNew]);
 
@@ -92,6 +93,7 @@ export default function SeasonEdit() {
         setSeasonEndAt("");
         setBattleCutoffMinutes(590);
         setBattleCutoffTzOffset("-03:00");
+        setDaysPerRound(4);
         setLoading(false);
         return;
       }
@@ -99,7 +101,7 @@ export default function SeasonEdit() {
       // load season
       const { data: sData, error: sErr } = await supabase
         .from("season")
-        .select("season_id,era_id,description,status,duel_start_date,duel_end_date,ladder_start_date,season_start_at,season_end_at,battle_cutoff_minutes,battle_cutoff_tz_offset")
+        .select("season_id,era_id,description,status,duel_start_date,duel_end_date,ladder_start_date,season_start_at,season_end_at,battle_cutoff_minutes,battle_cutoff_tz_offset,days_per_round")
         .eq("season_id", seasonId)
         .maybeSingle();
 
@@ -122,6 +124,7 @@ export default function SeasonEdit() {
 
       setBattleCutoffMinutes(sData?.battle_cutoff_minutes ?? 590);
       setBattleCutoffTzOffset(sData?.battle_cutoff_tz_offset ?? "-03:00");
+      setDaysPerRound(sData?.days_per_round ?? 4);
 
       setLoading(false);
     })();
@@ -145,6 +148,11 @@ export default function SeasonEdit() {
       return;
     }
 
+    if (daysPerRound < 1 || daysPerRound > 14) {
+      alert("Days per Round debe estar entre 1 y 14.");
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
@@ -158,6 +166,7 @@ export default function SeasonEdit() {
       season_end_at: fromDateTimeLocalToIso(seasonEndAt),
       battle_cutoff_minutes: battleCutoffMinutes,
       battle_cutoff_tz_offset: battleCutoffTzOffset,
+      days_per_round: daysPerRound,
     };
 
     if (isNew) {
@@ -358,6 +367,23 @@ export default function SeasonEdit() {
                     onChange={(e) => setSeasonEndAt(e.target.value)}
                     className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
                   />
+                </div>
+
+                <div className="flex flex-col w-full gap-2">
+                  <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold leading-normal ml-1">
+                    Days per Round (for tournament grouping)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="14"
+                    value={daysPerRound}
+                    onChange={(e) => setDaysPerRound(Math.max(1, Math.min(14, Number(e.target.value) || 1)))}
+                    className="flex w-full h-14 rounded-xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2333] focus:border-[#1152d4] focus:ring-1 focus:ring-[#1152d4] p-4 text-base transition-all"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 ml-1">
+                    Controla cuántos días se agrupan por ronda en el resumen diario.
+                  </p>
                 </div>
 
                 {/* Battle Cutoff Configuration */}
