@@ -18,17 +18,17 @@
  * from 09:50 UTC yesterday to 09:50 UTC today).
  *
  * @param {string} battleTimestamp - ISO 8601 timestamp (e.g., '2026-02-28T09:45:00Z')
- * @param {number} [cutoffMinutes=590] - Minutes to subtract from battle time (default: 590 = 09:50 UTC)
+ * @param {number} [cutoffMinutes=600] - Minutes to subtract from battle time (default: 600 = 10:00 UTC)
  * @returns {string} Game date as ISO string (YYYY-MM-DD)
  *
  * @example
- * getBattleDateKey('2026-02-28T09:45:00Z', 590)
- * // → '2026-02-27' (before 09:50 UTC cutoff, previous day)
+ * getBattleDateKey('2026-02-28T09:59:00Z', 600)
+ * // → '2026-02-27' (before 10:00 UTC cutoff, previous day)
  *
- * getBattleDateKey('2026-02-28T10:05:00Z', 590)
- * // → '2026-02-28' (after 09:50 UTC cutoff, same day)
+ * getBattleDateKey('2026-02-28T10:00:00Z', 600)
+ * // → '2026-02-28' (at/after 10:00 UTC cutoff, same day)
  */
-export function getBattleDateKey(battleTimestamp, cutoffMinutes = 590) {
+export function getBattleDateKey(battleTimestamp, cutoffMinutes = 600) {
   const battleTime = new Date(battleTimestamp);
 
   // Subtract cutoff minutes to get effective game time
@@ -84,7 +84,7 @@ export function getBattleDateKey(battleTimestamp, cutoffMinutes = 590) {
  * );
  * // → { total: 98.5, breakdown: { proximity: 40, completeness: 30, windowFit: 20, deckValidity: 10 } }
  */
-export function scoreBattleQuality(battle, scheduledFrom, scheduledTo, cutoffMinutes = 590, bestOf = 1) {
+export function scoreBattleQuality(battle, scheduledFrom, scheduledTo, cutoffMinutes = 600, bestOf = 1) {
   const battleTime = new Date(battle.battle_time);
   const from = new Date(scheduledFrom);
   const to = new Date(scheduledTo);
@@ -165,7 +165,7 @@ export function scoreBattleQuality(battle, scheduledFrom, scheduledTo, cutoffMin
  * //   alternatives: [{ battle_id: 1, score: 62 }]
  * // }
  */
-export function selectBestBattle(candidates, scheduledFrom, scheduledTo, cutoffMinutes = 590, bestOf = 1) {
+export function selectBestBattle(candidates, scheduledFrom, scheduledTo, cutoffMinutes = 600, bestOf = 1) {
   if (!candidates || candidates.length === 0) {
     return null;
   }

@@ -248,14 +248,12 @@ export default function SeasonsList() {
           });
 
           for (const day of expectedDays) {
-            const scheduledFrom = new Date(`${day}T00:00:00`);
-            scheduledFrom.setHours(0, 0, 0, 0);
+            // Create times explicitly in UTC to avoid timezone conversion issues
+            const scheduledFrom = new Date(`${day}T00:00:00Z`);
             
-            const scheduledTo = new Date(`${day}T00:00:00`);
-            scheduledTo.setHours(23, 59, 59, 999);
+            const scheduledTo = new Date(`${day}T23:59:59.999Z`);
 
-            const deadlineAt = new Date(`${day}T00:00:00`);
-            deadlineAt.setHours(23, 59, 59, 999);
+            const deadlineAt = new Date(`${day}T23:59:59.999Z`);
 
             if (existingByDay.has(day)) {
               totalSkipped++;
@@ -490,7 +488,7 @@ export default function SeasonsList() {
         .eq("season_id", seasonId)
         .single();
 
-      const cutoffMinutes = seasonData?.battle_cutoff_minutes ?? 590;
+      const cutoffMinutes = seasonData?.battle_cutoff_minutes ?? 600;
       
       // Add ±30 minute buffer to search window
       const bufferedFromTime = new Date(new Date(scheduledFrom).getTime() - 30 * 60 * 1000);

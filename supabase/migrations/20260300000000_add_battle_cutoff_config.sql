@@ -3,7 +3,7 @@
 -- instead of hardcoded 590-minute (09:50 UTC) offset
 
 ALTER TABLE public.season
-ADD COLUMN IF NOT EXISTS battle_cutoff_minutes INT DEFAULT 590,
+ADD COLUMN IF NOT EXISTS battle_cutoff_minutes INT DEFAULT 600,
 ADD COLUMN IF NOT EXISTS battle_cutoff_tz_offset TEXT DEFAULT '-03:00';
 
 COMMENT ON COLUMN season.battle_cutoff_minutes IS
