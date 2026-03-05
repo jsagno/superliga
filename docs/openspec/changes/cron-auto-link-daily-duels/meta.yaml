@@ -1,0 +1,71 @@
+id: cron-auto-link-daily-duels
+title: Auto-Link Daily Duels in CRON Process
+status: PLANNING
+created: 2026-03-04
+priority: HIGH
+tags:
+  - feature
+  - cron
+  - automation
+  - daily-duels
+  - api-integration
+
+problem: |
+  Currently, when CRON syncs battles from Supercell API, it detects daily duel battles
+  (CW_Duel_1v1 with riverRaceDuel or riverRaceDuelColosseum) but does not automatically
+  create or link the corresponding scheduled_match records. This requires manual work in
+  the admin website (SeasonsList.jsx) to generate daily duels and auto-link them.
+  
+  By automating this in CRON, we can:
+  - Eliminate manual admin steps
+  - Ensure immediate availability of daily duel results
+  - Reduce data sync latency
+  - Make the system more autonomous
+
+impact:
+  - Saves admin time on daily duel reconciliation
+  - Daily duel results available immediately after battle sync
+  - Reduced complexity in admin workflows
+  - CW_DAILY matches auto-populated from actual battles
+
+scope:
+  component: packages/cron/cron_clash_sync.py
+  tables:
+    - battle (read: api_battle_type, api_game_mode, battle_time, round_count)
+    - scheduled_match (write: create CW_DAILY if not exists)
+    - scheduled_match_battle_link (write: create link after scheduled_match)
+  action_trigger: When processing new battles in sync process
+  
+implementation_approach: |
+  1. During battle ingestion in CRON, detect daily duel battles:
+     - api_game_mode == 'CW_Duel_1v1'
+     - api_battle_type IN ['riverRaceDuel', 'riverRaceDuelColosseum']
+  
+  2. Extract player_id from battle data (battle_round_player -> player_id)
+  
+  3. Check if CW_DAILY scheduled_match exists for:
+     - player_a_id = extracted_player_id
+     - type = 'CW_DAILY'
+     - scheduled_from date matches battle date (using battle_date_key logic)
+  
+  4. If not exists: create scheduled_match with:
+     - type = 'CW_DAILY'
+     - stage = 'CW_Duel_1v1'
+     - best_of = 1
+     - status = 'PENDING'
+     - (other fields as per daily duel generation logic)
+  
+  5. Create scheduled_match_battle_link to associate battle
+  
+  6. Calculate daily duel result and populate scheduled_match_result
+     - points_schema: 2-0=4-0, 2-1=3-1, 1-2=1-3, 0-2=0-4
+     - decided_by = 'SYSTEM' (CRON-generated)
+
+acceptance_criteria:
+  - CRON detects daily duel battles automatically
+  - Scheduled_match created with correct stage and type
+  - Battle linked within seconds of sync process
+  - Manual admin step "Auto-vincular" no longer needed for daily duels
+  - All daily duel results have correct points values
+  - No duplicate scheduled_match records created
+  - Processes correctly handles edge cases (multiple battles same day, time zone)

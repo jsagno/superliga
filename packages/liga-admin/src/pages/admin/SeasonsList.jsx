@@ -338,6 +338,7 @@ export default function SeasonsList() {
         .select(`
           scheduled_match_id,
           season_id,
+          competition_id,
           zone_id,
           player_a_id,
           scheduled_from,
@@ -388,7 +389,9 @@ export default function SeasonsList() {
           match.scheduled_to,
           match.stage,
           match.scheduled_match_id,
-          seasonId
+          seasonId,
+          match.competition_id,
+          'CW_DAILY'
         );
 
         if (!availableBattle) {
@@ -415,7 +418,8 @@ export default function SeasonsList() {
           availableBattle,
           match.player_a_id,
           match.scheduled_from,
-          match.best_of
+          match.best_of,
+          seasonId
         );
 
         if (!result) {
@@ -479,7 +483,7 @@ export default function SeasonsList() {
     }
   }
 
-  async function findAvailableBattle(playerId, scheduledFrom, scheduledTo, stage, scheduledMatchId, seasonId) {
+  async function findAvailableBattle(playerId, scheduledFrom, scheduledTo, stage, scheduledMatchId, seasonId, competitionId, matchType) {
     try {
       // Load season cutoff configuration
       const { data: seasonData } = await supabase
@@ -489,6 +493,40 @@ export default function SeasonsList() {
         .single();
 
       const cutoffMinutes = seasonData?.battle_cutoff_minutes ?? 600;
+      
+      let expectedGameMode = null;
+      let expectedBattleType = null;
+      let expectedBattleTypes = []; // For multiple valid types
+      
+      // Special handling for CW_DAILY: always use CW_Duel_1v1 with riverRaceDuel or riverRaceDuelColosseum
+      if (matchType === 'CW_DAILY') {
+        expectedGameMode = 'CW_Duel_1v1';
+        expectedBattleTypes = ['riverRaceDuel', 'riverRaceDuelColosseum'];
+        console.log(`[findAvailableBattle] CW_DAILY match - forcing game_mode="${expectedGameMode}", battle_types=[${expectedBattleTypes.join(', ')}]`);
+      } else {
+        // Resolve expected battle type and game mode from competition config
+        // CRITICAL: stage is tournament stage and must be mapped via season_competition_config
+        if (seasonId && competitionId && stage) {
+          const { data: modeConfig, error: modeConfigError } = await supabase
+            .from("season_competition_config")
+            .select("api_battle_type, api_game_mode")
+            .eq("season_id", seasonId)
+            .eq("competition_id", competitionId)
+            .eq("stage", stage)
+            .maybeSingle();
+
+          if (modeConfigError) {
+            console.warn(`Failed to resolve api_game_mode for stage "${stage}":`, modeConfigError);
+          }
+          expectedGameMode = modeConfig?.api_game_mode || null;
+          expectedBattleType = modeConfig?.api_battle_type || null;
+          
+          if (!expectedGameMode || !expectedBattleType) {
+            console.warn(`[findAvailableBattle] Missing config for stage="${stage}" competition=${competitionId}. expectedBattleType="${expectedBattleType}" expectedGameMode="${expectedGameMode}"`);
+            return null;
+          }
+        }
+      }
       
       // Add ±30 minute buffer to search window
       const bufferedFromTime = new Date(new Date(scheduledFrom).getTime() - 30 * 60 * 1000);
@@ -509,10 +547,12 @@ export default function SeasonsList() {
       const { data: brp } = await supabase
         .from("battle_round_player")
         .select("battle_round_id")
-        .eq("player_id", playerId)
-        .limit(5000);
+        .eq("player_id", playerId);
 
-      if (!brp || brp.length === 0) return null;
+      if (!brp || brp.length === 0) {
+        console.debug(`[findAvailableBattle] No battle rounds found for player=${playerId}`);
+        return null;
+      }
 
       const roundIds = brp.map(r => r.battle_round_id);
 
@@ -522,20 +562,34 @@ export default function SeasonsList() {
         .select("battle_id, battle_round_id")
         .in("battle_round_id", roundIds);
 
-      if (!rounds || rounds.length === 0) return null;
+      if (!rounds || rounds.length === 0) {
+        console.debug(`[findAvailableBattle] No battle rounds fetched for player=${playerId}`);
+        return null;
+      }
 
       const battleIds = [...new Set(rounds.map(r => r.battle_id))];
 
-      // Fetch 10 battles in the buffered time range (instead of 1)
+      // Build battle query with proper filtering
       let battleQuery = supabase
         .from("battle")
-        .select("battle_id, battle_time, round_count, raw_payload")
+        .select("battle_id, battle_time, round_count, raw_payload, api_battle_type, api_game_mode")
         .in("battle_id", battleIds)
-        .eq("api_game_mode", stage)
         .gte("battle_time", fromISO)
-        .lte("battle_time", toISO)
-        .order("battle_time", { ascending: true })
-        .limit(10);  // Fetch 10 candidates
+        .lte("battle_time", toISO);
+
+      // Apply api_battle_type filter
+      if (expectedBattleTypes.length > 0) {
+        // Multiple battle types (e.g., CW_DAILY with riverRaceDuel or riverRaceDuelColosseum)
+        battleQuery = battleQuery.in("api_battle_type", expectedBattleTypes);
+      } else if (expectedBattleType) {
+        // Single battle type (e.g., CUP_MATCH)
+        battleQuery = battleQuery.eq("api_battle_type", expectedBattleType);
+      }
+
+      // Apply api_game_mode filter if configured
+      if (expectedGameMode) {
+        battleQuery = battleQuery.eq("api_game_mode", expectedGameMode);
+      }
 
       // Exclude already linked battles
       if (alreadyLinked.length > 0) {
@@ -544,10 +598,14 @@ export default function SeasonsList() {
 
       const { data: candidateBattles } = await battleQuery;
 
-      if (!candidateBattles || candidateBattles.length === 0) return null;
+      if (!candidateBattles || candidateBattles.length === 0) {
+        console.debug(`[findAvailableBattle] No candidate battles found for player=${playerId}, expectedBattleType="${expectedBattleType || expectedBattleTypes.join('|')}", expectedGameMode="${expectedGameMode}"`);
+        return null;
+      }
 
       // If only one candidate, return it directly
       if (candidateBattles.length === 1) {
+        console.debug(`[findAvailableBattle] Selected 1 battle (only option) for player=${playerId}`);
         return candidateBattles[0];
       }
 
@@ -601,7 +659,7 @@ export default function SeasonsList() {
     }
   }
 
-  async function calculateBattleResult(battle, playerId, battleDate, bestOf) {
+  async function calculateBattleResult(battle, playerId, battleDate, bestOf, seasonId) {
     try {
       // 1. Obtener rounds de la batalla
       const { data: rounds } = await supabase
@@ -655,10 +713,22 @@ export default function SeasonsList() {
         final_score_b = teamWins;
       }
 
-      // 5. Verificar si era extreme/risky ese día
-      const isExtremeRisky = await checkExtremeRisky(playerId, battle.battle_time);
+      // 5. Check if season has extreme/risky configured
+      const { data: seasonData } = await supabase
+        .from("season")
+        .select("is_extreme_config_disabled")
+        .eq("season_id", seasonId)
+        .maybeSingle();
+      
+      const extremeRiskyEnabled = seasonData?.is_extreme_config_disabled === false;
+      
+      // 6. Verificar si era extreme/risky ese día (solo si está habilitado en la temporada)
+      let isExtremeRisky = false;
+      if (extremeRiskyEnabled) {
+        isExtremeRisky = await checkExtremeRisky(playerId, battle.battle_time);
+      }
 
-      // 6. Calcular puntos según reglas
+      // 7. Calcular puntos según reglas
       // En un BO3 (round_count=3), se necesitan 2 rounds para ganar
       const roundsToWin = Math.ceil(battle.round_count / 2);
       
@@ -666,23 +736,29 @@ export default function SeasonsList() {
       let points_b = 0;
 
       if (final_score_a === roundsToWin && final_score_b === 0) {
-        // 2-0 perfecto
+        // 2-0 perfecto → 4-0
         points_a = isExtremeRisky ? 5 : 4;
+        points_b = 0;
       } else if (final_score_a === roundsToWin && final_score_b > 0) {
-        // 2-1 ganó pero perdió algún round
+        // 2-1 ganó pero perdió algún round → 3-1
         points_a = isExtremeRisky ? 4 : 3;
+        points_b = 1;
       } else if (final_score_b === roundsToWin && final_score_a > 0) {
-        // 1-2 perdió pero ganó algún round
+        // 1-2 perdió pero ganó algún round → 1-3
         points_a = 1;
+        points_b = isExtremeRisky ? 4 : 3;
       } else if (final_score_b === roundsToWin && final_score_a === 0) {
-        // 0-2 perdió sin ganar nada
+        // 0-2 perdió sin ganar nada → 0-4
         points_a = 0;
+        points_b = isExtremeRisky ? 5 : 4;
       } else {
-        // Otros casos
+        // Otros casos (empates o casos raros)
         if (final_score_a > final_score_b) {
           points_a = isExtremeRisky ? 4 : 3;
+          points_b = final_score_b > 0 ? 1 : 0;
         } else if (final_score_a < final_score_b) {
           points_a = final_score_a > 0 ? 1 : 0;
+          points_b = isExtremeRisky ? 4 : 3;
         }
       }
 
@@ -973,7 +1049,17 @@ export default function SeasonsList() {
                     title="Auto-vincular batallas a partidos CW_DAILY pendientes"
                   >
                     <span className="material-symbols-outlined">{autoLinking ? 'hourglass_empty' : 'link'}</span>
-                    <span>{autoLinking ? 'Vinculando...' : 'Auto-vincular'}</span>
+                    <span>{autoLinking ? 'Vinculando...' : 'Auto-vincular (Todos)'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => autoLinkBattles(activeSeason.season_id, 'ff82c140-7a65-4ad6-a479-3ed992d97e31')}
+                    disabled={autoLinking}
+                    className="flex-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-amber-500/20 text-sm font-bold text-amber-600 dark:text-amber-400 shadow-sm hover:bg-amber-500/30 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Auto-vincular solo para Guts"
+                  >
+                    <span className="material-symbols-outlined">{autoLinking ? 'hourglass_empty' : 'person_search'}</span>
+                    <span>{autoLinking ? 'Vinculando...' : 'Auto-vincular Guts'}</span>
                   </button>
 
                   <button

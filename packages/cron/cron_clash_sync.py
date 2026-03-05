@@ -4,13 +4,21 @@ import time
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from postgrest.exceptions import APIError
+from colorama import Fore, Style, init as colorama_init
+
+try:
+    from discord_notifications import notify_duel_result
+    DISCORD_ENABLED = True
+except ImportError:
+    logging.warning("discord_notifications module not available, Discord notifications disabled")
+    DISCORD_ENABLED = False
 
 
 # -----------------------------
@@ -56,18 +64,44 @@ def load_config() -> Config:
 # -----------------------------
 # Logging
 # -----------------------------
+class ColoredFormatter(logging.Formatter):
+    """Custom formatter with colors for console output."""
+    
+    FORMATS = {
+        logging.DEBUG: Fore.CYAN + "%(asctime)s | DEBUG | %(message)s" + Style.RESET_ALL,
+        logging.INFO: "%(asctime)s | INFO | %(message)s",
+        logging.WARNING: Fore.YELLOW + "%(asctime)s | WARNING | %(message)s" + Style.RESET_ALL,
+        logging.ERROR: Fore.RED + "%(asctime)s | ERROR | %(message)s" + Style.RESET_ALL,
+        logging.CRITICAL: Fore.RED + Style.BRIGHT + "%(asctime)s | CRITICAL | %(message)s" + Style.RESET_ALL,
+    }
+    
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno, self.FORMATS[logging.INFO])
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
 def setup_logging(cfg: Config) -> None:
+    colorama_init(autoreset=True)  # Initialize colorama for Windows
     os.makedirs(os.path.dirname(cfg.log_file), exist_ok=True)
     level = getattr(logging, cfg.log_level.upper(), logging.INFO)
 
+    # File handler (no colors)
+    file_handler = logging.FileHandler(cfg.log_file, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
+    
+    # Console handler (with colors)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(ColoredFormatter())
+    
     logging.basicConfig(
         level=level,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        handlers=[
-            logging.FileHandler(cfg.log_file, encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
+        handlers=[file_handler, console_handler],
     )
+    
+    # Suppress HTTP request logs from Supabase client libraries
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 # -----------------------------
@@ -200,12 +234,30 @@ def flush_pending_cards(sb: Client, pending_cards: Dict[int, Dict[str, Any]]) ->
     return len(rows)
 
 def parse_battle_time(s: str) -> datetime:
-    # Supercell battleTime format like "20201219T101010.000Z"
-    # We'll support both with/without milliseconds.
+    # Handle multiple formats:
+    # - Supercell: "20201219T101010.000Z"
+    # - ISO with timezone: "2026-03-05T11:06:19+00:00" or "2026-03-05T11:06:19Z"
+    
+    # Try Supercell format first
     try:
         return datetime.strptime(s, "%Y%m%dT%H%M%S.%fZ").replace(tzinfo=timezone.utc)
     except ValueError:
+        pass
+    
+    # Try Supercell format without milliseconds
+    try:
         return datetime.strptime(s, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    
+    # Try ISO 8601 format with timezone offset (e.g., 2026-03-05T11:06:19+00:00)
+    try:
+        return datetime.fromisoformat(s)
+    except (ValueError, TypeError):
+        pass
+    
+    # If all else fails, raise error with original string
+    raise ValueError(f"Cannot parse battle time: {s}")
 
 
 def stable_battle_id(battle_time: datetime, player_tags: List[str], game_mode: str, battle_type: str) -> str:
@@ -524,6 +576,532 @@ def sb_overwrite_battle_with_rounds(sb: Client, battle_id: str,
     # 3) mark repaired + store payload
     sb_update_battle_repaired(sb, battle_id, raw_payload)
 
+
+# -----------------------------
+# Daily Duel Auto-Linking Utilities
+# -----------------------------
+# Cache for admin user UUID (fetched once per sync run)
+_admin_user_cache: Optional[str] = None
+
+
+def get_cached_admin_user(sb: Client) -> Optional[str]:
+    """
+    Fetch the first admin app_user UUID (filter by role='ADMIN', order by created_at ASC).
+    Cache result to avoid repeated queries during a sync run.
+    """
+    global _admin_user_cache
+    if _admin_user_cache is not None:
+        return _admin_user_cache
+    
+    try:
+        res = sb.table("app_user") \
+            .select("id") \
+            .eq("role", "ADMIN") \
+            .order("created_at", desc=False) \
+            .limit(1) \
+            .execute()
+        if res.data and len(res.data) > 0:
+            _admin_user_cache = res.data[0]["id"]
+            logging.info(f"Fetched admin user for auto-linking: {_admin_user_cache}")
+            return _admin_user_cache
+    except Exception as e:
+        logging.error(f"Failed to fetch admin user: {e}")
+    
+    return None
+
+
+def get_active_season(sb: Client) -> Optional[Dict[str, Any]]:
+    """Fetch the active season with configuration."""
+    try:
+        res = sb.table("season") \
+            .select("season_id,duel_start_date,duel_end_date,battle_cutoff_minutes,is_extreme_config_disabled") \
+            .eq("status", "ACTIVE") \
+            .limit(1) \
+            .execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0]
+    except Exception as e:
+        logging.error(f"Failed to fetch active season: {e}")
+    
+    return None
+
+
+def convert_to_game_day(battle_time: datetime, season_config: Dict[str, Any]) -> date:
+    """
+    Convert battle_time to game day using cutoff logic.
+    Game day boundary: 09:50 UTC (default: battle_cutoff_minutes = 600 = 10 hours)
+    """
+    cutoff_minutes = season_config.get("battle_cutoff_minutes", 600)
+    cutoff_seconds = cutoff_minutes * 60
+    
+    # UTC time
+    utc_time = battle_time if battle_time.tzinfo else battle_time.replace(tzinfo=timezone.utc)
+    
+    # Cutoff time for this day (09:50 UTC = 35400 seconds from midnight)
+    day_start = datetime.combine(utc_time.date(), datetime.min.time(), tzinfo=timezone.utc)
+    cutoff_time = day_start + timedelta(seconds=cutoff_seconds)
+    
+    # If battle is before cutoff, it belongs to previous day
+    if utc_time < cutoff_time:
+        return (utc_time - timedelta(days=1)).date()
+    else:
+        return utc_time.date()
+
+
+def get_game_day_boundaries(battle_time: datetime, season_config: Dict[str, Any]) -> tuple[datetime, datetime]:
+    """
+    Get start and end of game day (both using cutoff logic).
+    Returns (game_day_start_utc, game_day_end_utc)
+    """
+    cutoff_minutes = season_config.get("battle_cutoff_minutes", 600)
+    cutoff_seconds = cutoff_minutes * 60
+    
+    # Get the game day
+    game_day = convert_to_game_day(battle_time, season_config)
+    
+    # Game day starts at cutoff time of the day before
+    day_start = datetime.combine(game_day, datetime.min.time(), tzinfo=timezone.utc)
+    game_day_start = day_start + timedelta(seconds=cutoff_seconds)
+    
+    # Game day ends at cutoff time of current day
+    game_day_end = datetime.combine(game_day + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    game_day_end = game_day_end + timedelta(seconds=cutoff_seconds)
+    
+    return game_day_start, game_day_end
+
+
+def get_player_zone(sb: Client, player_id: str, season_id: str) -> Optional[str]:
+    """Fetch zone_id for player in given season."""
+    try:
+        # season_id is stored in season_zone, not in season_zone_team_player.
+        season_zones = sb.table("season_zone") \
+            .select("zone_id") \
+            .eq("season_id", season_id) \
+            .execute()
+
+        zone_ids = [r["zone_id"] for r in (season_zones.data or []) if r.get("zone_id")]
+        if not zone_ids:
+            return None
+
+        res = sb.table("season_zone_team_player") \
+            .select("zone_id") \
+            .eq("player_id", player_id) \
+            .in_("zone_id", zone_ids) \
+            .limit(1) \
+            .execute()
+
+        if res.data and len(res.data) > 0:
+            return res.data[0].get("zone_id")
+    except Exception as e:
+        logging.warning(f"Failed to fetch zone for player {player_id}: {e}")
+    
+    return None
+
+
+def find_existing_daily_match(sb: Client, player_id: str, game_day: date, season_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Find existing scheduled_match for player/date with type='CW_DAILY'.
+    Returns the match if found, None otherwise.
+    """
+    try:
+        game_day_start = datetime.combine(game_day, datetime.min.time(), tzinfo=timezone.utc)
+        res = sb.table("scheduled_match") \
+            .select("scheduled_match_id,player_a_id,status,score_a,score_b") \
+            .eq("player_a_id", player_id) \
+            .eq("type", "CW_DAILY") \
+            .eq("season_id", season_id) \
+            .gte("scheduled_from", game_day_start.isoformat()) \
+            .lt("scheduled_from", (game_day_start + timedelta(days=1)).isoformat()) \
+            .limit(1) \
+            .execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0]
+    except Exception as e:
+        logging.error(f"Failed to find daily match for player {player_id}: {e}")
+    
+    return None
+
+
+def calculate_daily_duel_result(sb: Client, battle_id: str, player_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Calculate battle result for daily duel.
+    Returns dict with: final_score_a, final_score_b, points_a, points_b
+    """
+    try:
+        # Fetch TEAM rounds for this player - opponent result comes from opponent_crowns
+        res = sb.table("battle_round_player") \
+            .select("battle_round_id,player_id,side,crowns,opponent_crowns,battle_round!inner(battle_id)") \
+            .eq("battle_round.battle_id", battle_id) \
+            .eq("player_id", player_id) \
+            .eq("side", "TEAM") \
+            .execute()
+        
+        if not res.data or len(res.data) == 0:
+            logging.warning(f"No round players found for battle {battle_id}")
+            return None
+        
+        team_rounds = res.data
+
+        if not team_rounds:
+            logging.warning(f"Battle {battle_id} missing TEAM rounds for player {player_id}")
+            return None
+        
+        # Count rounds won for each side (crowns > opponent_crowns)
+        team_wins = 0
+        opp_wins = 0
+        
+        for tr in team_rounds:
+            player_crowns = tr.get("crowns", 0)
+            opp_crowns = tr.get("opponent_crowns", 0)
+            if player_crowns > opp_crowns:
+                team_wins += 1
+            elif opp_crowns > player_crowns:
+                opp_wins += 1
+        
+        final_score_a = team_wins  # Our player's wins (TEAM side)
+        final_score_b = opp_wins   # Opponent's wins
+        
+        # Map to points
+        points_a, points_b = map_score_to_points(final_score_a, final_score_b)
+        
+        return {
+            "final_score_a": final_score_a,
+            "final_score_b": final_score_b,
+            "points_a": points_a,
+            "points_b": points_b
+        }
+    except Exception as e:
+        logging.error(f"Failed to calculate result for battle {battle_id}: {e}")
+    
+    return None
+
+
+def map_score_to_points(final_score_a: int, final_score_b: int) -> tuple[int, int]:
+    """
+    Map battle score to points using daily duel schema.
+    Rules: 2-0=4-0, 2-1=3-1, 1-2=1-3, 0-2=0-4
+    """
+    if final_score_a == 2 and final_score_b == 0:
+        return 4, 0
+    elif final_score_a == 2 and final_score_b == 1:
+        return 3, 1
+    elif final_score_a == 1 and final_score_b == 2:
+        return 1, 3
+    elif final_score_a == 0 and final_score_b == 2:
+        return 0, 4
+    else:
+        # Fallback for unexpected scores
+        logging.warning(f"Unexpected score: {final_score_a}-{final_score_b}, defaulting to 0-0")
+        return 0, 0
+
+
+def create_daily_match_if_needed(sb: Client, player_id: str, battle_time: datetime, 
+                                 season_id: str, season_config: Dict[str, Any]) -> Optional[str]:
+    """
+    Create scheduled_match for player if one doesn't exist for the game day.
+    Returns scheduled_match_id (either created or existing).
+    """
+    try:
+        game_day = convert_to_game_day(battle_time, season_config)
+        
+        # Check if match exists
+        existing = find_existing_daily_match(sb, player_id, game_day, season_id)
+        if existing:
+            return existing["scheduled_match_id"]
+        
+        # Get zone
+        zone_id = get_player_zone(sb, player_id, season_id)
+        if not zone_id:
+            logging.warning(f"Cannot create daily match: no zone found for player {player_id}")
+            return None
+        
+        # Get game day boundaries
+        game_day_start, game_day_end = get_game_day_boundaries(battle_time, season_config)
+        
+        # Create new scheduled_match
+        from uuid import uuid4
+        scheduled_match_id = str(uuid4())
+        
+        match_data = {
+            "scheduled_match_id": scheduled_match_id,
+            "season_id": season_id,
+            "zone_id": zone_id,
+            "player_a_id": player_id,
+            "player_b_id": None,
+            "type": "CW_DAILY",
+            "stage": "CW_Duel_1v1",
+            "best_of": 1,
+            "status": "PENDING",
+            "scheduled_from": game_day_start.isoformat(),
+            "scheduled_to": game_day_end.isoformat(),
+            "deadline_at": game_day_end.isoformat(),
+        }
+        
+        sb.table("scheduled_match").insert(match_data).execute()
+        logging.info(f"Created scheduled_match {scheduled_match_id} for player {player_id} on {game_day}")
+        
+        return scheduled_match_id
+    except Exception as e:
+        logging.error(f"Failed to create daily match for player {player_id}: {e}")
+    
+    return None
+
+
+def link_battle_to_match(sb: Client, scheduled_match_id: str, battle_id: str, admin_user_id: str, verbose: bool = True) -> bool:
+    """Create scheduled_match_battle_link record."""
+    try:
+        from uuid import uuid4
+        link_id = str(uuid4())
+        
+        link_data = {
+            "scheduled_match_battle_link_id": link_id,
+            "scheduled_match_id": scheduled_match_id,
+            "battle_id": battle_id,
+            "linked_by_admin": admin_user_id,
+        }
+        
+        sb.table("scheduled_match_battle_link").insert(link_data).execute()
+        if verbose:
+            logging.info(f"Linked battle {battle_id} to match {scheduled_match_id}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to link battle {battle_id} to match {scheduled_match_id}: {e}")
+    
+    return False
+
+
+def create_match_result(sb: Client, scheduled_match_id: str, result: Dict[str, Any], verbose: bool = True) -> bool:
+    """Create scheduled_match_result record."""
+    try:
+        result_data = {
+            "scheduled_match_id": scheduled_match_id,
+            "final_score_a": result["final_score_a"],
+            "final_score_b": result["final_score_b"],
+            "points_a": result["points_a"],
+            "points_b": result["points_b"],
+            "decided_by": "ADMIN",
+        }
+        
+        sb.table("scheduled_match_result").insert(result_data).execute()
+        if verbose:
+            logging.info(f"Created result for match {scheduled_match_id}: {result['final_score_a']}-{result['final_score_b']}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create result for match {scheduled_match_id}: {e}")
+    
+    return False
+
+
+def update_match_with_scores(sb: Client, scheduled_match_id: str, final_score_a: int, final_score_b: int, verbose: bool = True) -> bool:
+    """Update scheduled_match with scores and status."""
+    try:
+        sb.table("scheduled_match").update({
+            "score_a": final_score_a,
+            "score_b": final_score_b,
+            "status": "OVERRIDDEN",
+        }).eq("scheduled_match_id", scheduled_match_id).execute()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to update match {scheduled_match_id} with scores: {e}")
+    
+    return False
+
+
+def is_daily_duel_battle(api_game_mode: str, api_battle_type: str) -> bool:
+    """Check if a battle qualifies as a daily duel based on game mode and battle type."""
+    return (api_game_mode == "CW_Duel_1v1" and 
+            api_battle_type in ["riverRaceDuel", "riverRaceDuelColosseum"])
+
+
+def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str, Any], 
+                             tag_to_player_id: Dict[str, str], season_config: Dict[str, Any],
+                             admin_user_id: str, verbose: bool = True) -> bool:
+    """
+    Main orchestration function for auto-linking daily duel battles.
+    Returns True if processing succeeded, False otherwise.
+    verbose: If False, suppresses intermediate log messages (for existing battle re-linking).
+    """
+    try:
+        if verbose:
+            logging.info(f"🎮 [DAILY_DUEL] Starting process_daily_duel_battle for battle_id={battle_id}, verbose={verbose}")
+        
+        # Verify this is a daily duel
+        api_game_mode = battle_data.get("api_game_mode")
+        api_battle_type = battle_data.get("api_battle_type")
+        if verbose:
+            logging.info(f"🎮 [DAILY_DUEL] Checking game mode: {api_game_mode}, battle type: {api_battle_type}")
+        
+        if not is_daily_duel_battle(api_game_mode, api_battle_type):
+            if verbose:
+                logging.warning(f"🎮 [DAILY_DUEL] Not a daily duel battle: {api_game_mode} / {api_battle_type}")
+            return False
+        
+        if verbose:
+            logging.info(f"🎮 [DAILY_DUEL] ✓ Battle type validated as daily duel")
+        
+        # Get season
+        season_id = season_config.get("season_id")
+        if not season_id:
+            logging.error("🎮 [DAILY_DUEL] Cannot process daily duel: no active season")
+            return False
+        
+        if verbose:
+            logging.info(f"🎮 [DAILY_DUEL] Season ID: {season_id}")
+        
+        # Extract player from battle (TEAM side) and opponent payload fallback
+        try:
+            if verbose:
+                logging.info(f"🎮 [DAILY_DUEL] Extracting player from battle_round_player...")
+            res = sb.table("battle_round_player") \
+            .select("player_id,opponent,battle_round!inner(battle_id)") \
+                .eq("battle_round.battle_id", battle_id) \
+                .eq("side", "TEAM") \
+                .limit(1) \
+                .execute()
+            
+            if not res.data or len(res.data) == 0:
+                logging.warning(f"🎮 [DAILY_DUEL] Cannot find player for daily duel battle {battle_id}")
+                return False
+            
+            team_row = res.data[0]
+            player_id = team_row["player_id"]
+
+            # Opponent may be unregistered; in that case use JSON payload stored in TEAM row
+            opponent_payload = team_row.get("opponent") or []
+            opponent_nick_from_payload = "Rival"
+            opponent_tag_from_payload = None
+            if isinstance(opponent_payload, list) and len(opponent_payload) > 0:
+                first_opp = opponent_payload[0] or {}
+                opponent_tag_from_payload = first_opp.get("tag")
+                opponent_nick_from_payload = first_opp.get("name") or first_opp.get("tag") or "Rival"
+        except Exception as e:
+            logging.error(f"Failed to extract player from battle {battle_id}: {e}")
+            return False
+        
+        # Parse battle time
+        try:
+            battle_time = parse_battle_time(battle_data.get("battle_time", ""))
+        except Exception as e:
+            logging.error(f"Failed to parse battle time for {battle_id}: {e}")
+            return False
+        
+        # Create match if needed
+        scheduled_match_id = create_daily_match_if_needed(sb, player_id, battle_time, season_id, season_config)
+        if not scheduled_match_id:
+            logging.warning(f"Failed to create/find daily match for battle {battle_id}")
+            return False
+        
+        # Link battle
+        if not link_battle_to_match(sb, scheduled_match_id, battle_id, admin_user_id, verbose):
+            if verbose:
+                logging.warning(f"Failed to link battle {battle_id}")
+            return False
+        
+        # Calculate result
+        result = calculate_daily_duel_result(sb, battle_id, player_id)
+        if not result:
+            if verbose:
+                logging.warning(f"Failed to calculate result for battle {battle_id}")
+            return False
+        
+        # Create result record
+        if not create_match_result(sb, scheduled_match_id, result, verbose):
+            if verbose:
+                logging.warning(f"Failed to create result for match {scheduled_match_id}")
+            return False
+        
+        # Update match with scores
+        if not update_match_with_scores(sb, scheduled_match_id, result["final_score_a"], result["final_score_b"], verbose):
+            if verbose:
+                logging.warning(f"Failed to update match scores for {scheduled_match_id}")
+            return False
+        
+        # Send Discord notifications (supports unregistered opponents via opponent JSON payload)
+        if verbose:
+            logging.info(f"📢 Discord check for battle {battle_id} - DISCORD_ENABLED: {DISCORD_ENABLED}")
+        if DISCORD_ENABLED:
+            try:
+                if verbose:
+                    logging.info(f"📢 [Step 1] Fetching player info for player_id={player_id}")
+                # Get player nick and zone
+                player_res = sb.table("player").select("nick").eq("player_id", player_id).execute()
+                player_nick = player_res.data[0]["nick"] if player_res.data else f"Player_{player_id[:8]}"
+                if verbose:
+                    logging.info(f"📢 [Step 1] Got player nick: {player_nick}")                
+                    logging.info(f"📢 [Step 2] Getting player zone for season_id={season_id}, player_id={player_id}")                    
+                player_zone_id = get_player_zone(sb, player_id, season_id)
+                if verbose:
+                    logging.info(f"📢 [Step 2] Player zone_id: {player_zone_id}")
+
+                # Opponent data from battle_round_player.opponent payload
+                opponent_nick = opponent_nick_from_payload
+                opponent_zone_id = None
+                if verbose:
+                    logging.info(f"📢 [Step 3] Opponent nick from payload: {opponent_nick}, opponent_tag: {opponent_tag_from_payload}")
+
+                # If player has no zone configured for season, skip notification
+                if not player_zone_id:
+                    logging.warning(f"📢 Discord SKIPPED for battle {battle_id}: no zone configured for player {player_id} in season {season_id}")
+                    return True
+                if verbose:
+                    logging.info(f"📢 [Step 4] Determining winner for battle {battle_id}")
+                    logging.info(f"📢 [Step 4] Score: player={result['final_score_a']}, opponent={result['final_score_b']}")
+                
+                # Determine winner and format score
+                if result["final_score_a"] > result["final_score_b"]:
+                    # Player won
+                    score_str = f"{result['final_score_a']}-{result['final_score_b']}"
+                    winner_nick = player_nick
+                    winner_zone_id = player_zone_id
+                    loser_nick = opponent_nick
+                    loser_zone_id = opponent_zone_id
+                    if verbose:
+                        logging.info(f"📢 [Step 4] Player won: {winner_nick} (zone={winner_zone_id}) beat {loser_nick} (zone={loser_zone_id})")
+                else:
+                    # Opponent won
+                    score_str = f"{result['final_score_b']}-{result['final_score_a']}"
+                    winner_nick = opponent_nick
+                    winner_zone_id = opponent_zone_id
+                    loser_nick = player_nick
+                    loser_zone_id = player_zone_id
+                    if verbose:
+                        logging.info(f"📢 [Step 4] Opponent won: {winner_nick} beat {loser_nick}")
+
+                if opponent_tag_from_payload and opponent_nick == "Rival":
+                    opponent_nick = opponent_tag_from_payload
+                    if verbose:
+                        logging.info(f"📢 [Step 4] Updated opponent nick from tag: {opponent_nick}")
+                    if result["final_score_a"] > result["final_score_b"]:
+                        loser_nick = opponent_nick
+                    else:
+                        winner_nick = opponent_nick
+                
+                # Send notifications
+                if verbose:
+                    logging.info(f"📢 [Step 5] CALLING notify_duel_result")
+                    logging.info(f"📢 [Step 5] Parameters: winner={winner_nick}, winner_zone={winner_zone_id}, loser={loser_nick}, loser_zone={loser_zone_id}, score={score_str}")
+                notify_duel_result(
+                    winner_nick=winner_nick,
+                    loser_nick=loser_nick,
+                    score=score_str,
+                    winner_zone_id=winner_zone_id,
+                    loser_zone_id=loser_zone_id,
+                    supabase_client=sb
+                )                
+                logging.info(f"📢 [Step 5] SUCCESS: notify_duel_result completed for battle {battle_id}")
+            except Exception as e:
+                logging.error(f"📢 ❌ Discord ERROR for battle {battle_id}: {e}", exc_info=True)
+        else:
+            if verbose:
+                logging.info(f"Discord notification skipped for battle {battle_id}: DISCORD_ENABLED=False")
+        
+        if verbose:
+            logging.info(f"Successfully auto-linked daily duel battle {battle_id}")
+        return True
+    except Exception as e:
+        logging.error(f"Error in process_daily_duel_battle for {battle_id}: {e}", exc_info=True)
+        return False
+
 # -----------------------------
 # Transform battlelog -> DB rows
 # -----------------------------
@@ -748,12 +1326,27 @@ def assign_player_ids(round_players_rows: List[Dict[str, Any]], tag_to_player_id
 # -----------------------------
 def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict[int, Dict[str, Any]]) -> None:
     """Run a single sync cycle."""
+    global _admin_user_cache
+    
     logging.info("=== CRON START: Supercell sync ===")
 
-    # 0) temporada actual    
+    # 0) temporada actual
     season_id = get_current_season_id(sb)
     season_player_tags  = get_season_participant_tags(sb, season_id)
-    logging.info(f"Season participants (tags): {len(season_player_tags )}")
+    logging.info(f"Season participants (tags): {len(season_player_tags)}")
+    
+    # 0a) Get active season config + admin user for daily duel auto-linking
+    season_config = get_active_season(sb)
+    if not season_config:
+        logging.error("Cannot proceed: no active season configuration found")
+        return
+    
+    admin_user_id = get_cached_admin_user(sb)
+    if not admin_user_id:
+        logging.warning("Cannot auto-link daily duels: admin user not found")
+    
+    # Reset cache for this sync run
+    _admin_user_cache = None
 
     # 1) Repair queue primero (OK)
     run_repairs(sb, api, cfg, card_cache)
@@ -762,18 +1355,23 @@ def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict
     total_new = 0
     total_skipped = 0
     total_incomplete = 0
+    total_daily_linked = 0
+    
     for tag in sorted(season_player_tags):
         try:
-            new, skipped, incomplete = sync_player_battlelog(sb, api, cfg, tag, card_cache, season_player_tags)
+            new, skipped, incomplete, daily_linked = sync_player_battlelog(
+                sb, api, cfg, tag, card_cache, season_player_tags, season_config, admin_user_id
+            )
             total_new += new
             total_skipped += skipped
             total_incomplete += incomplete
+            total_daily_linked += daily_linked
         except APIError as e:
             logging.error(f"API error syncing battlelog for {tag}: {e}. Continuing with next player...")
         except Exception as e:
             logging.error(f"Unexpected error syncing battlelog for {tag}: {e}", exc_info=True)
     
-    logging.info(f"=== CRON COMPLETE: Sync finished - New: {total_new}, Skipped: {total_skipped}, Incomplete: {total_incomplete} ===")
+    logging.info(f"=== CRON COMPLETE: Sync finished - New: {total_new}, Skipped: {total_skipped}, Incomplete: {total_incomplete}, Daily Linked: {total_daily_linked} ===")
 
 
 def main() -> None:
@@ -784,12 +1382,6 @@ def main() -> None:
     import socket
     socket.setdefaulttimeout(30)
     socket.has_ipv6 = False
-    logging.info(f"SUPABASE_URL repr: {repr(os.getenv('SUPABASE_URL'))}")
-    logging.info(f"SUPABASE_KEY present: {bool(os.getenv('SUPABASE_SERVICE_ROLE_KEY'))}")
-
-    logging.info(f"SUPABASE_URL2 repr: {repr(cfg.supabase_url)}")
-    logging.info(f"SUPABASE_KEY2 present: {bool(cfg.supabase_key)}")
-
     sb = create_client(cfg.supabase_url, cfg.supabase_key)
     api = SupercellApi(cfg.supercell_token)
 
@@ -855,7 +1447,7 @@ def run_repairs(sb: Client, api: SupercellApi, cfg: Config, card_cache: Dict[int
     logging.info("Repair marking complete. (Actual repair happens during player battlelog re-sync)")
 
 
-def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag: str, card_cache: Dict[int, Dict[str, Any]], season_player_tags: Optional[List[str]] = None) -> Tuple[int, int, int]:
+def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag: str, card_cache: Dict[int, Dict[str, Any]], season_player_tags: Optional[List[str]] = None, season_config: Optional[Dict[str, Any]] = None, admin_user_id: Optional[str] = None) -> Tuple[int, int, int, int]:
     cache_path = os.path.join(cfg.cache_dir, f"battlelog_{player_tag.replace('#','')}.json")
     data = load_cache(cache_path, cfg.cache_ttl_battlelog_min)
     pending_cards: Dict[int, Dict[str, Any]] = {}
@@ -871,6 +1463,7 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
     inserted = 0
     skipped = 0
     marked_incomplete = 0
+    daily_linked = 0
 
     # Collect all tags involved for mapping to player_id
     all_tags = []
@@ -892,7 +1485,7 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
             # Filter out types you don't want
             btype = b.get("type")
             if btype in ("pathOfLegend", "boatBattle", "PvP", "trail"):
-                logging.info(f"Skipped battle because of type: {btype}")
+                # Silently skip unwanted battle types
                 skipped += 1
                 continue
 
@@ -901,7 +1494,7 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
             game_mode = (b.get("gameMode") or {}).get("name") or (b.get("gameMode") or {}).get("id") or "unknown"
             tags = extract_player_tags_from_battle(b)
             if not tags:
-                logging.warning("Skipped battle because no player tags were found.")
+                # Silently skip battles without player tags
                 skipped += 1
                 continue
 
@@ -928,7 +1521,7 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
             round_players_rows2 = assign_player_ids(round_players_rows, tag_to_player_id)
             # If we couldn't map all players, we skip inserting those rows; if none, skip battle insert
             if not round_players_rows2:
-                logging.warning(f"Skipped battle insert {battle_id} because no round player rows could be mapped to player_id.")
+                # Silently skip battles that can't be mapped to player_id
                 skipped += 1
                 continue
 
@@ -939,6 +1532,24 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
 
             sb_insert_battle_with_rounds(sb, battle_row, rounds_rows, round_players_rows2)
             inserted += 1
+            
+            # Log successful battle insertion
+            player_tag_display = tags[0] if tags else "Unknown"
+            logging.info(f"{Fore.GREEN}✓ Battle recorded: {player_tag_display} | {game_mode} | {battle_type}{Style.RESET_ALL}")
+            
+            # Try to auto-link as daily duel if applicable
+            if season_config and admin_user_id and not incomplete:
+                api_game_mode = battle_row.get("api_game_mode")
+                api_battle_type = battle_row.get("api_battle_type")
+                if is_daily_duel_battle(api_game_mode, api_battle_type):
+                    logging.debug(f"Attempting auto-link for NEW battle {battle_id}")
+                    battle_data = {
+                        "api_game_mode": api_game_mode,
+                        "api_battle_type": api_battle_type,
+                        "battle_time": battle_row.get("battle_time"),
+                    }
+                    if process_daily_duel_battle(sb, battle_id, battle_data, tag_to_player_id, season_config, admin_user_id):
+                        daily_linked += 1
         else:
             # Battle exists.
             # Rule: do NOT touch existing battles, EXCEPT the explicit repair flow.
@@ -973,12 +1584,45 @@ def sync_player_battlelog(sb: Client, api: SupercellApi, cfg: Config, player_tag
                     logging.info(f"Battle exists but appears incomplete; marking for refresh: {battle_id}")
                     sb_mark_battle_for_refresh(sb, battle_id, {"missing_cards": True, "reason": "re-detected_incomplete"})
                     marked_incomplete += 1
+                else:
+                    # Check if this existing battle should be linked as daily duel
+                    if season_config and admin_user_id and is_daily_duel_battle(game_mode, battle_type):
+                        # Check if link already exists
+                        try:
+                            link_check = sb.table("scheduled_match_battle_link") \
+                                .select("scheduled_match_battle_link_id") \
+                                .eq("battle_id", battle_id) \
+                                .limit(1) \
+                                .execute()
+                            
+                            if not link_check.data or len(link_check.data) == 0:
+                                # No link exists - try to create it (without notification)
+                                logging.info(f"Attempting auto-link for EXISTING battle {battle_id} (Discord will be disabled)")
+                                battle_data = {
+                                    "api_game_mode": game_mode,
+                                    "api_battle_type": battle_type,
+                                    "battle_time": bt.isoformat(),
+                                }
+                                
+                                # Temporarily disable Discord for re-sync to avoid duplicate notifications
+                                global DISCORD_ENABLED
+                                original_discord_state = DISCORD_ENABLED
+                                DISCORD_ENABLED = False
+                                
+                                try:
+                                    if process_daily_duel_battle(sb, battle_id, battle_data, tag_to_player_id, season_config, admin_user_id, verbose=False):
+                                        daily_linked += 1
+                                        logging.info(f"{Fore.GREEN}✓ Linked existing battle to daily duel: {battle_id}{Style.RESET_ALL}")
+                                finally:
+                                    DISCORD_ENABLED = original_discord_state
+                        except Exception as e:
+                            logging.warning(f"Failed to check/link existing battle {battle_id}: {e}")
 
             skipped += 1
     inserted_cards = flush_pending_cards(sb, pending_cards)
     if inserted_cards:
         logging.info(f"Inserted/Upserted new cards: {inserted_cards}")
-    return inserted, skipped, marked_incomplete
+    return inserted, skipped, marked_incomplete, daily_linked
 
 
 if __name__ == "__main__":

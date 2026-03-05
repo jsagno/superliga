@@ -1,0 +1,40 @@
+id: fix-auto-vincular-missing-results
+title: Fix Auto-Vincular Process - Missing Scheduled Match Results
+status: PLANNING
+created: 2026-03-01
+priority: HIGH
+tags:
+  - bug
+  - data-integrity
+  - scheduled-matches
+  - auto-linking
+
+problem: |
+  Some scheduled_match records do not have corresponding scheduled_match_result records
+  despite having battles played and linked. The "Auto-vincular" process in admin/seasons
+  may not be creating results properly when linking battles to scheduled matches.
+  
+  This causes the daily points grid to show -1 penalties for matches that were actually
+  played, affecting player standings accuracy.
+
+impact:
+  - Players receive incorrect penalty points for played matches
+  - Daily points grid shows inaccurate data
+  - Player standings calculations are incorrect
+  - Trust in system data integrity is compromised
+
+root_cause_hypothesis: |
+  The "Auto-vincular" action in SeasonsList.jsx may have one or more issues:
+  1. Creates scheduled_match_battle_link but not scheduled_match_result
+  2. Point calculation logic may have errors
+  3. Transaction may be failing partially
+  4. Validation checks may be preventing result creation
+
+artifacts:
+  - investigation-report.md
+  - fix-script.sql
+  - root-cause-analysis.md
+  - test-plan.md
+
+related:
+  - daily-points-round-grouping-penalties

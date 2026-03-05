@@ -33,6 +33,9 @@ export default function AdminLayout() {
             <NavLink to="/admin/battles-history" className={navLinkClass}>
               Historial de Batallas
             </NavLink>
+            <NavLink to="/admin/discord-webhooks" className={navLinkClass}>
+              🔔 Discord
+            </NavLink>
 
           </nav>
 

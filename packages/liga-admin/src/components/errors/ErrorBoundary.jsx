@@ -97,8 +97,7 @@ function DefaultErrorFallback({ error, errorInfo, errorId, onRetry, level }) {
             >
               <path
                 strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeLinejoin="round"
+                strokeLinejoin="round"                
                 d="M12 9v2m0 4v2m0 0v2m0-6v-2m0 0v-2m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>

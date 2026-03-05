@@ -47,7 +47,9 @@ export default function SeasonDailyPoints() {
     }
 
     setSeason(seasonData);
-    setBattleCutoffMinutes(seasonData?.battle_cutoff_minutes ?? 590);
+    const cutoff = seasonData?.battle_cutoff_minutes ?? 590;
+    console.log('🔍 SeasonDailyPoints - Loading cutoff:', cutoff, 'from season:', seasonData?.description);
+    setBattleCutoffMinutes(cutoff);
 
     const { data: zonesData, error: zonesErr } = await supabase
       .from("season_zone")
@@ -162,15 +164,17 @@ export default function SeasonDailyPoints() {
   // `buildDailyPointsGrid` centralizes round grouping and consecutive miss penalties.
   // Example streak: miss, miss, play, miss => -1, -2, reset, -1; at 4 misses player is excluded.
   const gridData = useMemo(
-    () =>
-      buildDailyPointsGrid({
+    () => {
+      console.log('🔍 SeasonDailyPoints - Building grid with cutoff:', battleCutoffMinutes);
+      return buildDailyPointsGrid({
         season,
         matches,
         players,
         searchPlayer,
         filterTeamId,
         battleCutoffMinutes,
-      }),
+      });
+    },
     [season, matches, players, searchPlayer, filterTeamId, battleCutoffMinutes]
   );
 
