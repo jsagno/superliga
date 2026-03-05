@@ -1,0 +1,1270 @@
+
+> liga-admin@0.0.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mD:/LigaInterna/packages/liga-admin[39m
+
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mbattle before cutoff counts as previous day[32m 17[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mbattle after cutoff counts as same day[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mbattle exactly at cutoff counts as same day[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mmidnight UTC (before cutoff)[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mcustom cutoff (5 hours = 300 minutes)[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mzero cutoff (no offset)[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mmonth boundary[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22myear boundary[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetBattleDateKey[2m > [22mfull day cutoff (1440 minutes = 24 hours)[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mcalculateRounds[2m > [22mgroups dates by daysPerRound and handles partial final round[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mgetPenaltyForConsecutiveMisses[2m > [22mreturns expected penalty scale[32m 3[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mapplyConsecutiveMissPenalties[2m > [22mtracks misses, resets after played date, and excludes after 4 misses[32m 4[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mbuildDailyPointsGrid[2m > [22mrenders round headers and includes penalties in total[32m 29[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mbuildDailyPointsGrid[2m > [22mhandles player join/leave windows and excludes player after 4 misses[32m 7[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mbuildDailyPointsGrid[2m > [22mstops penalties after end_date and only starts after start_date[32m 9[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mbuildDailyPointsGrid[2m > [22muses 4-day round fallback when season.days_per_round is missing[32m 22[2mms[22m[39m
+ [31m├ù[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mscoreBattleQuality[2m > [22mperfect battle scores ~100[32m 84[2mms[22m[39m
+[31m   ΓåÆ expected 10 to be 20 // Object.is equality[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mscoreBattleQuality[2m > [22mincomplete battle scores lower[32m 9[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mscoreBattleQuality[2m > [22mbattle at edge of window[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mscoreBattleQuality[2m > [22mbattle without deck data scores lower[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mscoreBattleQuality[2m > [22mbest_of=1 allows any round_count[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mselectBestBattle[2m > [22msingle candidate returns with SINGLE_CANDIDATE reason[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mselectBestBattle[2m > [22mempty array returns null[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mselectBestBattle[2m > [22mselects higher-scoring battle[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mselectBestBattle[2m > [22mclose call when scores differ by <5 points[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misBattleQualityAcceptable[2m > [22mscore above threshold is acceptable[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misBattleQualityAcceptable[2m > [22mscore below threshold is not acceptable[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misBattleQualityAcceptable[2m > [22mdefault threshold is 30[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m590 minutes = 09:50[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m420 minutes = 07:00[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m300 minutes = 05:00[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m0 minutes = 00:00[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m1440 minutes = 24:00[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m60 minutes = 01:00[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22mgetDisplayTimeFromCutoff[2m > [22m1320 minutes = 22:00[32m 3[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misWithinTimeWindow[2m > [22mbattle within window[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misWithinTimeWindow[2m > [22mbattle at window start boundary[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misWithinTimeWindow[2m > [22mbattle at window end boundary[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misWithinTimeWindow[2m > [22mbattle before window[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/battleDateUtils.test.js[2m > [22mbattleDateUtils[2m > [22misWithinTimeWindow[2m > [22mbattle after window[32m 3[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/dailyPointsUtils.test.js[2m > [22mdailyPointsUtils[2m > [22mbuildDailyPointsGrid[2m > [22mprocesses large dataset under 2 seconds[33m 561[2mms[22m[39m
+ [32mΓ£ô[39m src/services/playersService.test.js[2m > [22mfetchPlayers returns array (integration, requires Supabase)[33m 1273[2mms[22m[39m
+ [31m├ù[39m src/hooks/usePlayers.test.js[2m > [22musePlayers returns loading then data[32m 162[2mms[22m[39m
+[31m   ΓåÆ waitForNextUpdate is not a function[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Rendering > should render loading skeletons initially
+Error loading cards: { message: 'Database error' }
+An update to CardGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to CardGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mRendering[2m > [22mshould render player information[33m 365[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mRendering[2m > [22mshould display empty state when no restrictions[32m 15[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mRendering[2m > [22mshould display card count badge[32m 38[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Rendering > should render search input
+Error loading cards: { message: 'Database error' }
+An update to CardGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to CardGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mRendering[2m > [22mshould show total restriction count in footer[32m 34[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Grouping[2m > [22mshould group cards by rarity[32m 32[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Grouping[2m > [22mshould display rarity emoji for each group[32m 27[2mms[22m[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Grouping[2m > [22mshould sort cards alphabetically within rarity[32m 34[2mms[22m[39m
+ [32mΓ£ô[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mRendering[2m > [22mshould render loading skeletons initially[32m 234[2mms[22m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Grouping[2m > [22mshould skip rarity groups with no cards[32m 27[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Display[2m > [22mshould render all restricted cards[32m 56[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: P.E.K.K.A. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:border-slate-600/50 transition-colors"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/30"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center gap-3 flex-1 min-w-0"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"w-10 h-10 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border border-slate-600"[31m
+          [36m>[31m
+            [36m<img[31m
+              [33malt[31m=[32m"Alice"[31m
+              [33mclass[31m=[32m"w-full h-full object-cover"[31m
+              [33msrc[31m=[32m"/src/assets/unnamed.png"[31m
+            [36m/>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"min-w-0 flex-1"[31m
+          [36m>[31m
+            [36m<h3[31m
+              [33mclass[31m=[32m"font-semibold text-white truncate"[31m
+            [36m>[31m
+              [0mAlice[0m
+            [36m</h3>[31m
+            [36m<p[31m
+              [33mclass[31m=[32m"text-xs text-slate-400 truncate"[31m
+            [36m>[31m
+              [0m@Alice ΓÇó [0m
+              [0mZONE A[0m
+            [36m</p>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"ml-3 px-3 py-1 rounded-full bg-brand/20 border border-brand/30 flex-shrink-0"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-sm font-medium text-brand"[31m
+          [36m>[31m
+            [0m4[0m
+          [36m</span>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 space-y-4"[31m
+      [36m>[31m
+        [36m<div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center gap-2 mb-2 px-2"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-lg"[31m
+            [36m>[31m
+              [0mΓ¡É[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs font-semibold text-slate-400 uppercase"[31m
+            [36m>[31m
+              [0mLegendary[0m
+              [0m ([0m
+              [0m2[0m
+              [0m)[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex flex-wrap gap-2"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"P.E.K.K.A, Legendary"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-orange-500/50 hover:border-orange-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"Princess, Legendary"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-orange-500/50 hover:border-orange-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center gap-2 mb-2 px-2"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-lg"[31m
+            [36m>[31m
+              [0m≡ƒÆÖ[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs font-semibold text-slate-400 uppercase"[31m
+            [36m>[31m
+              [0mRare[0m
+              [0m ([0m
+              [0m1[0m
+              [0m)[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex flex-wrap gap-2"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"Fireball, Rare"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-blue-500/50 hover:border-blue-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center gap-2 mb-2 px-2"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-lg"[31m
+            [36m>[31m
+              [0mΓÜ¬[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs font-semibold text-slate-400 uppercase"[31m
+            [36m>[31m
+              [0mCommon[0m
+              [0m ([0m
+              [0m1[0m
+              [0m)[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex flex-wrap gap-2"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"Knight, Common"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-slate-500/50 hover:border-slate-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 border-t border-slate-700/50 bg-slate-900/20 flex items-center justify-between"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-xs text-slate-500"[31m
+        [36m>[31m
+          [0m4[0m
+          [0m restricted cards[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33maria-label[31m=[32m"Clear all restrictions for Alice"[31m
+          [33mclass[31m=[32m"px-3 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"[31m
+        [36m>[31m
+          [0mClear All[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Display[2m > [22mshould have card with correct rarity label[32m 23[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Rendering > should render rarity filter pills
+Error loading cards: { message: 'Database error' }
+
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mCard Display[2m > [22mshould have correct rarity borders[32m 32[2mms[22m[39m
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mRendering[2m > [22mshould render search input[32m 99[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould show delete button on hover[33m 907[2mms[22m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould hide delete button when not hovering[33m 345[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Rendering > should load and display cards
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mRendering[2m > [22mshould render rarity filter pills[33m 1034[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: /All/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Rendering > should display card count in pills
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mRendering[2m > [22mshould load and display cards[33m 1037[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould call onDeleteCard when delete button clicked[33m 628[2mms[22m[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould call onDeleteCard when Delete key pressed on card[32m 76[2mms[22m[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould work with Backspace key as well[32m 60[2mms[22m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Selection > should toggle card selection
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mDelete Single Card[2m > [22mshould show tooltip with card name on hover[32m 241[2mms[22m[39m
+[31m   ΓåÆ expected 1 to be greater than or equal to 2[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mClear All[2m > [22mshould show Clear All button[32m 29[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mRendering[2m > [22mshould display card count in pills[33m 1036[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: /All \(\d+\)/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mClear All[2m > [22mshould show confirmation dialog when Clear All clicked[32m 187[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Selection > should show selection state with checkmark
+Error loading cards: { message: 'Database error' }
+
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mClear All[2m > [22mshould call onDeleteAll when confirmed[33m 380[2mms[22m[39m
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSelection[2m > [22mshould toggle card selection[33m 1039[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mClear All[2m > [22mshould cancel confirmation when Cancel clicked[33m 391[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Selection > should enforce max selection limit
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mClear All[2m > [22mshould skip confirmation when onApprovedDelete is true[32m 221[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mAccessibility[2m > [22mshould have proper aria-labels[32m 29[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toHaveAttribute[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mAccessibility[2m > [22mshould label clear all button descriptively[32m 32[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mAccessibility[2m > [22mshould label delete buttons descriptively[32m 245[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mAccessibility[2m > [22mshould label confirmation buttons clearly[32m 211[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mAccessibility[2m > [22mcards should be keyboard focusable[32m 33[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toHaveAttribute[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mStyle Variations[2m > [22mshould apply champion rarity styling[32m 32[2mms[22m[39m
+ [32mΓ£ô[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mStyle Variations[2m > [22mshould apply epic rarity styling[32m 15[2mms[22m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mEdge Cases[2m > [22mshould handle missing card names[32m 29[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Unknown. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:border-slate-600/50 transition-colors"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/30"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center gap-3 flex-1 min-w-0"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"w-10 h-10 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border border-slate-600"[31m
+          [36m>[31m
+            [36m<img[31m
+              [33malt[31m=[32m"Alice"[31m
+              [33mclass[31m=[32m"w-full h-full object-cover"[31m
+              [33msrc[31m=[32m"/src/assets/unnamed.png"[31m
+            [36m/>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"min-w-0 flex-1"[31m
+          [36m>[31m
+            [36m<h3[31m
+              [33mclass[31m=[32m"font-semibold text-white truncate"[31m
+            [36m>[31m
+              [0mAlice[0m
+            [36m</h3>[31m
+            [36m<p[31m
+              [33mclass[31m=[32m"text-xs text-slate-400 truncate"[31m
+            [36m>[31m
+              [0m@Alice ΓÇó [0m
+              [0mZONE A[0m
+            [36m</p>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"ml-3 px-3 py-1 rounded-full bg-brand/20 border border-brand/30 flex-shrink-0"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-sm font-medium text-brand"[31m
+          [36m>[31m
+            [0m1[0m
+          [36m</span>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 space-y-4"[31m
+      [36m>[31m
+        [36m<div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center gap-2 mb-2 px-2"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-lg"[31m
+            [36m>[31m
+              [0mΓ¡É[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs font-semibold text-slate-400 uppercase"[31m
+            [36m>[31m
+              [0mLegendary[0m
+              [0m ([0m
+              [0m1[0m
+              [0m)[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex flex-wrap gap-2"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"null, Legendary"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-orange-500/50 hover:border-orange-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 border-t border-slate-700/50 bg-slate-900/20 flex items-center justify-between"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-xs text-slate-500"[31m
+        [36m>[31m
+          [0m1[0m
+          [0m restricted cards[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33maria-label[31m=[32m"Clear all restrictions for Alice"[31m
+          [33mclass[31m=[32m"px-3 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"[31m
+        [36m>[31m
+          [0mClear All[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mEdge Cases[2m > [22mshould handle missing zone name[32m 32[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mEdge Cases[2m > [22mshould handle missing nick[32m 61[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mEdge Cases[2m > [22mshould handle unknown rarity gracefully[32m 49[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Test Card. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:border-slate-600/50 transition-colors"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/30"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center gap-3 flex-1 min-w-0"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"w-10 h-10 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border border-slate-600"[31m
+          [36m>[31m
+            [36m<img[31m
+              [33malt[31m=[32m"Alice"[31m
+              [33mclass[31m=[32m"w-full h-full object-cover"[31m
+              [33msrc[31m=[32m"/src/assets/unnamed.png"[31m
+            [36m/>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"min-w-0 flex-1"[31m
+          [36m>[31m
+            [36m<h3[31m
+              [33mclass[31m=[32m"font-semibold text-white truncate"[31m
+            [36m>[31m
+              [0mAlice[0m
+            [36m</h3>[31m
+            [36m<p[31m
+              [33mclass[31m=[32m"text-xs text-slate-400 truncate"[31m
+            [36m>[31m
+              [0m@Alice ΓÇó [0m
+              [0mZONE A[0m
+            [36m</p>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"ml-3 px-3 py-1 rounded-full bg-brand/20 border border-brand/30 flex-shrink-0"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-sm font-medium text-brand"[31m
+          [36m>[31m
+            [0m1[0m
+          [36m</span>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 space-y-4"[31m
+      [36m>[31m
+        [36m<div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center gap-2 mb-2 px-2"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-lg"[31m
+            [36m>[31m
+              [0mΓÜ¬[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs font-semibold text-slate-400 uppercase"[31m
+            [36m>[31m
+              [0mCommon[0m
+              [0m ([0m
+              [0m1[0m
+              [0m)[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex flex-wrap gap-2"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"relative group"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33maria-label[31m=[32m"Test Card, Unknown"[31m
+                [33mclass[31m=[32m"
+                      w-16 h-24 rounded-lg border-2 transition-all
+                      bg-slate-700 flex flex-col items-center justify-center overflow-hidden
+                      cursor-pointer hover:scale-105 hover:shadow-lg relative
+                      border-slate-500/50 hover:border-slate-400
+                    "[31m
+                [33mrole[31m=[32m"img"[31m
+                [33mtabindex[31m=[32m"0"[31m
+              [36m>[31m
+                [36m<div[31m
+                  [33mclass[31m=[32m"text-2xl"[31m
+                [36m>[31m
+                  [0m≡ƒ¢í∩╕Å[0m
+                [36m</div>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"p-4 border-t border-slate-700/50 bg-slate-900/20 flex items-center justify-between"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-xs text-slate-500"[31m
+        [36m>[31m
+          [0m1[0m
+          [0m restricted cards[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33maria-label[31m=[32m"Clear all restrictions for Alice"[31m
+          [33mclass[31m=[32m"px-3 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"[31m
+        [36m>[31m
+          [0mClear All[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+ [31m├ù[39m src/components/RestrictionCard.test.jsx[2m > [22mRestrictionCard[2m > [22mMultiple Cards Interaction[2m > [22mshould handle multiple delete buttons appearing independently[32m 263[2mms[22m[39m
+[31m   ΓåÆ Invalid Chai property: toBeInTheDocument[39m
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSelection[2m > [22mshould show selection state with checkmark[33m 1037[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Selection > should display selected count when maxSelection set
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSelection[2m > [22mshould enforce max selection limit[33m 1033[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Filtering > should filter cards by rarity
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSelection[2m > [22mshould display selected count when maxSelection set[33m 1045[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: /Selected: 1 \/ 5/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Filtering > should show correct card count for each rarity
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mFiltering[2m > [22mshould filter cards by rarity[33m 1048[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Search > should search cards by name
+Error loading cards: { message: 'Database error' }
+
+ [32mΓ£ô[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mFiltering[2m > [22mshould show correct card count for each rarity[33m 911[2mms[22m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Search > should be case-insensitive
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSearch[2m > [22mshould search cards by name[33m 1036[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Search > should show no results message when search matches nothing
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSearch[2m > [22mshould be case-insensitive[33m 1026[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Search > should have clear button in search results
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSearch[2m > [22mshould show no results message when search matches nothing[33m 1031[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Keyboard Navigation > should navigate with arrow keys
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mSearch[2m > [22mshould have clear button in search results[33m 1024[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+stderr | src/components/CardGrid.test.jsx > CardGrid Component > Keyboard Navigation > should select card with Enter key
+Error loading cards: { message: 'Database error' }
+
+ [31m├ù[39m src/components/CardGrid.test.jsx[2m > [22mCardGrid Component[2m > [22mKeyboard Navigation[2m > [22mshould navigate with arrow keys[33m 1019[2mms[22m[39m
+[31m   ΓåÆ Unable to find an element with the text: Knight. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+    [36m>[31m
+      [36m<p[31m
+        [33mclass[31m=[32m"text-red-400"[31m
+      [36m>[31m
+        [0mError loading cards: [0m
+        [0mDatabase error[0m
+      [36m</p>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+      [36m>[31m
+        [0mRetry[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"bg-red-500/10 border border-red-500/30 rounded-lg p-4"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"text-red-400"[31m
+        [36m>[31m
+          [0mError loading cards: [0m
+          [0mDatabase error[0m
+        [36m</p>[31m
+        [36m<button[31m
+          [33mclass[31m=[32m"mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"[31m
+        [36m>[31m
+          [0mRetry[0m
+        [36m</button>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m

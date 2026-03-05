@@ -1,0 +1,67 @@
+drop extension if exists "pg_net";
+
+alter table "public"."season_extreme_participant" drop constraint "season_extreme_participant_participant_type_check";
+
+drop view if exists "public"."active_extreme_participants";
+
+drop index if exists "public"."idx_season_extreme_config_disabled";
+
+alter table "public"."season" drop column "is_extreme_config_disabled";
+
+alter table "public"."season_extreme_participant" add constraint "season_extreme_participant_participant_type_check" CHECK (((participant_type)::text = ANY ((ARRAY['EXTREMER'::character varying, 'RISKY'::character varying])::text[]))) not valid;
+
+alter table "public"."season_extreme_participant" validate constraint "season_extreme_participant_participant_type_check";
+
+create or replace view "public"."active_extreme_participants" as  SELECT sep.season_extreme_participant_id,
+    sep.season_id,
+    sep.team_id,
+    sep.player_id,
+    sep.participant_type,
+    sep.start_date,
+    sep.end_date,
+    sep.created_at,
+    sep.updated_at,
+    s.description AS season_name,
+    t.name AS team_name,
+    p.nick AS player_nick,
+    p.name AS player_name
+   FROM (((public.season_extreme_participant sep
+     JOIN public.season s ON ((sep.season_id = s.season_id)))
+     JOIN public.team t ON ((sep.team_id = t.team_id)))
+     JOIN public.player p ON ((sep.player_id = p.player_id)))
+  WHERE ((sep.start_date <= CURRENT_DATE) AND ((sep.end_date IS NULL) OR (sep.end_date >= CURRENT_DATE)));
+
+
+drop trigger if exists "objects_delete_delete_prefix" on "storage"."objects";
+
+drop trigger if exists "objects_insert_create_prefix" on "storage"."objects";
+
+drop trigger if exists "objects_update_create_prefix" on "storage"."objects";
+
+drop trigger if exists "prefixes_create_hierarchy" on "storage"."prefixes";
+
+drop trigger if exists "prefixes_delete_hierarchy" on "storage"."prefixes";
+
+
+  create policy "Authenticated users can upload"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to authenticated
+with check (((bucket_id = 'ligakq'::text) AND ((storage.foldername(name))[1] = 'teams'::text)));
+
+
+
+  create policy "Public can view files"
+  on "storage"."objects"
+  as permissive
+  for select
+  to public
+using ((bucket_id = 'ligakq'::text));
+
+
+CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
+
+CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
+
+

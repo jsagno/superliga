@@ -57,7 +57,7 @@ export default function SeasonEdit() {
   const [seasonStartAt, setSeasonStartAt] = useState("");
   const [seasonEndAt, setSeasonEndAt] = useState("");
 
-  const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(590);
+  const [battleCutoffMinutes, setBattleCutoffMinutes] = useState(600);
   const [battleCutoffTzOffset, setBattleCutoffTzOffset] = useState("-03:00");
   const [daysPerRound, setDaysPerRound] = useState(4);
 
@@ -122,7 +122,7 @@ export default function SeasonEdit() {
       setSeasonStartAt(toDateTimeLocalInput(sData?.season_start_at));
       setSeasonEndAt(toDateTimeLocalInput(sData?.season_end_at));
 
-      setBattleCutoffMinutes(sData?.battle_cutoff_minutes ?? 590);
+      setBattleCutoffMinutes(sData?.battle_cutoff_minutes ?? 600);
       setBattleCutoffTzOffset(sData?.battle_cutoff_tz_offset ?? "-03:00");
       setDaysPerRound(sData?.days_per_round ?? 4);
 

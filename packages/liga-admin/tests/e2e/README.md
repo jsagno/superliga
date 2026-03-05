@@ -25,6 +25,7 @@ Si estas variables no están definidas, los tests autenticados se marcan como `s
 - **Obligatorio:** Cada tarea de desarrollo debe incluir tests de UI relevantes en `tests/e2e/`.
 - Los tests deben cubrir los flujos principales y validaciones de la página/feature modificada.
 - El PR no será aceptado sin tests de UI para la funcionalidad entregada.
+- Antes de abrir PR, ejecutar `npm run check:ui-e2e` para validar automáticamente que cambios de UI incluyan actualización de Playwright.
 
 ## Matriz mínima E2E (lean)
 

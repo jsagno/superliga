@@ -185,6 +185,29 @@ export default function ScheduledMatches() {
   const [loadingBattles, setLoadingBattles] = useState(false);
   const [manualResult, setManualResult] = useState({ final_score_a: "", final_score_b: "", points_a: "", points_b: "", decided_by: "ADMIN" });
   const [editPlayerNames, setEditPlayerNames] = useState({ playerA: "", playerB: "" });
+  const [currentPointsSchema, setCurrentPointsSchema] = useState(null);
+
+  // Auto-calculate points when scores change
+  useEffect(() => {
+    if (!currentPointsSchema) return;
+    
+    const scoreA = parseInt(manualResult.final_score_a);
+    const scoreB = parseInt(manualResult.final_score_b);
+    
+    if (isNaN(scoreA) || isNaN(scoreB)) return;
+    
+    const resultKey = `${scoreA}-${scoreB}`;
+    const reverseKey = `${scoreB}-${scoreA}`;
+    
+    const pointsA = currentPointsSchema[resultKey] ?? 0;
+    const pointsB = currentPointsSchema[reverseKey] ?? 0;
+    
+    setManualResult(prev => ({
+      ...prev,
+      points_a: pointsA,
+      points_b: pointsB
+    }));
+  }, [manualResult.final_score_a, manualResult.final_score_b, currentPointsSchema]);
 
     // Bulk create modal
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -683,6 +706,17 @@ async function fetchGroupsForStage(stageId) {
       .select("final_score_a, final_score_b, points_a, points_b, decided_by")
       .eq("scheduled_match_id", row.scheduled_match_id)
       .maybeSingle();
+    
+    // Load points_schema from season_competition_config for auto-calculation
+    const { data: config } = await supabase
+      .from("season_competition_config")
+      .select("points_schema")
+      .eq("season_id", row.season_id)
+      .eq("competition_id", row.competition_id)
+      .eq("stage", row.stage)
+      .maybeSingle();
+    
+    setCurrentPointsSchema(config?.points_schema || { "2-0": 4, "2-1": 3, "1-2": 1, "0-2": 0 });
     
     // Calculate suggested result if no result set yet
     if (row.score_a == null || row.score_b == null) {

@@ -28,6 +28,7 @@ import SeasonZoneRankings from "../pages/admin/SeasonZoneRankings.jsx";
 import SeasonDailyPoints from "../pages/admin/SeasonDailyPoints.jsx";
 import SeasonRestrictions from "../pages/admin/SeasonRestrictions.jsx";
 import SeasonRestrictionEdit from "../pages/admin/SeasonRestrictionEdit.jsx";
+import ZoneDiscordWebhooks from "../pages/admin/ZoneDiscordWebhooks.jsx";
 
 const router = createBrowserRouter([
   { path: "/admin/login", element: <LoginAdmin /> },
@@ -70,6 +71,8 @@ const router = createBrowserRouter([
       { path: "points/manual", element: <PointsManual /> },
       { path: "battles/history", element: <BattlesHistory /> },
       { path: "battles-history", element: <BattlesHistory /> },
+
+      { path: "discord-webhooks", element: <ZoneDiscordWebhooks /> },
 
       { path: "/admin/season-zones", element: <SeasonZones /> },
       { path: "/admin/season-zones/:zoneId/teams", element: <SeasonZoneTeams /> },  
