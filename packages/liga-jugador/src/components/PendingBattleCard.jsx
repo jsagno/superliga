@@ -1,6 +1,3 @@
-// SPEC: docs/openspec/changes/liga-jugador/specs/dashboard-jugador.md — RF-DASH-05
-// SPEC: docs/openspec/changes/liga-jugador/specs/batallas-pendientes.md
-
 import React, { useEffect, useState } from 'react'
 import { Swords, Trophy, Clock } from 'lucide-react'
 
@@ -27,10 +24,10 @@ function useCountdown(deadlineAt) {
       const mins = Math.floor((diff % 3_600_000) / 60_000)
       const urgent = diff < 24 * 60 * 60 * 1000
       const text = days > 0
-        ? `Límite dentro de ${days} días, ${hours} horas, ${mins} min`
+        ? `Limite dentro de ${days} dias, ${hours} horas, ${mins} min`
         : hours > 0
-          ? `Límite dentro de ${hours} horas, ${mins} min`
-          : `Límite dentro de ${mins} min`
+          ? `Limite dentro de ${hours} horas, ${mins} min`
+          : `Limite dentro de ${mins} min`
       setDisplay({ text, urgent })
     }
 
@@ -42,10 +39,11 @@ function useCountdown(deadlineAt) {
   return display
 }
 
-export default function PendingBattleCard({ match }) {
+export default function PendingBattleCard({ match, onLink, onReport }) {
   const countdown = useCountdown(match.deadlineAt)
   const typeLabel = TYPE_LABEL[match.type] ?? match.type
   const TypeIcon = match.type === 'CUP_MATCH' ? Trophy : Swords
+  const rivalLabel = match.rivalName ?? 'Rival por confirmar'
 
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
@@ -54,8 +52,8 @@ export default function PendingBattleCard({ match }) {
           <TypeIcon className="w-4 h-4 text-blue-400" strokeWidth={2} />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-200 truncate">
-            {match.rivalName ?? 'Rival por confirmar'}
+          <p className="text-sm font-medium text-slate-200 truncate" data-testid={`pending-rival-${match.scheduledMatchId}`}>
+            {rivalLabel}
           </p>
           <p className="text-xs text-slate-500 truncate">
             {match.competitionName ? `${typeLabel} · ${match.competitionName}` : typeLabel}
@@ -84,13 +82,17 @@ export default function PendingBattleCard({ match }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => onReport?.(match)}
             className="text-xs px-2.5 py-1 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-500"
+            aria-label={`Reportar ${rivalLabel}`}
           >
             Reportar
           </button>
           <button
             type="button"
+            onClick={() => onLink?.(match)}
             className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+            aria-label={`Vincular batalla con ${rivalLabel}`}
           >
             Vincular
           </button>
