@@ -310,7 +310,7 @@ export default function DashboardJugador() {
         )}
       </main>
 
-      <BottomNav />
+      <BottomNav pendingCount={pendingMatches.length} />
     </div>
   )
 }

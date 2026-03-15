@@ -19,19 +19,18 @@ function useCountdown(deadlineAt) {
     function calc() {
       const diff = new Date(deadlineAt).getTime() - Date.now()
       if (diff <= 0) {
-        setDisplay({ text: 'Vencida', urgent: true })
+        setDisplay({ text: 'Expirado', urgent: true })
         return
       }
       const days = Math.floor(diff / 86_400_000)
       const hours = Math.floor((diff % 86_400_000) / 3_600_000)
       const mins = Math.floor((diff % 3_600_000) / 60_000)
       const urgent = diff < 24 * 60 * 60 * 1000
-      const text =
-        days > 0
-          ? `${days}d ${hours}h ${mins}m`
-          : hours > 0
-            ? `${hours}h ${mins}m`
-            : `${mins}m`
+      const text = days > 0
+        ? `Límite dentro de ${days} días, ${hours} horas, ${mins} min`
+        : hours > 0
+          ? `Límite dentro de ${hours} horas, ${mins} min`
+          : `Límite dentro de ${mins} min`
       setDisplay({ text, urgent })
     }
 
@@ -64,21 +63,38 @@ export default function PendingBattleCard({ match }) {
         </div>
       </div>
 
-      <div className="flex-shrink-0 flex items-center gap-1.5">
-        {countdown ? (
-          <>
-            <Clock className={`w-3.5 h-3.5 ${countdown.urgent ? 'text-red-400' : 'text-slate-500'}`} />
-            <span
-              className={`text-xs font-medium whitespace-nowrap ${
-                countdown.urgent ? 'text-red-400' : 'text-slate-400'
-              }`}
-            >
-              {countdown.text}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-slate-500">Sin horario</span>
-        )}
+      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+        <div className="flex items-center gap-1.5">
+          {countdown ? (
+            <>
+              <Clock className={`w-3.5 h-3.5 ${countdown.urgent ? 'text-red-400' : 'text-slate-500'}`} />
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${
+                  countdown.urgent ? 'text-red-400' : 'text-slate-400'
+                }`}
+              >
+                {countdown.text}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-slate-500">Sin horario fijado</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="text-xs px-2.5 py-1 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-500"
+          >
+            Reportar
+          </button>
+          <button
+            type="button"
+            className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+          >
+            Vincular
+          </button>
+        </div>
       </div>
     </div>
   )
