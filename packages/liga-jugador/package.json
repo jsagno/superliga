@@ -1,0 +1,40 @@
+{
+  "name": "liga-jugador",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && vite --port 5174",
+    "build": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && vite build",
+    "lint": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && eslint .",
+    "preview": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && vite preview",
+    "test:e2e": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && playwright test tests/e2e",
+    "test:e2e:ui": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && playwright test tests/e2e --ui",
+    "test:e2e:serve": "set \"PATH=%NVM_HOME%\\v22.17.0;%PATH%\" && set \"VITE_E2E_AUTH_BYPASS=true\" && set \"VITE_E2E_APP_USER_ID=e2e-app-user\" && set \"VITE_E2E_PLAYER_ID=e2e-player\" && npm run build && playwright test tests/e2e --config=playwright.preview.config.js",
+    "test:e2e:auth": "npm run test:e2e:serve"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.11.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.51.1",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.2.4"
+  }
+}
