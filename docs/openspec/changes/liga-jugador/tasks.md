@@ -97,18 +97,18 @@
 **Referencia Stitch:** `a6eec8e65e024088875d3c8685765e60`  
 **Archivo:** `src/pages/BatallasPendientes.jsx`
 
-- [ ] 7.1 Crear `src/services/scheduledMatchesService.js`:
+- [x] 7.1 Crear `src/services/scheduledMatchesService.js`:
   - `fetchPendingMatches(playerId, seasonId)` → `scheduled_match` con estado `PENDING`, joins a `competition`, `player_a`, `player_b`
-- [ ] 7.2 Implementar header "Batallas Pendientes" con campana de notificaciones e ícono de vista (grid/list)
-- [ ] 7.3 Implementar tabs de filtro: "Todas" | "Copa de Liga" (🏆) | "Duelo Diario" (⚔)
-- [ ] 7.4 Implementar `src/components/PendingBattleCard.jsx`:
+- [x] 7.2 Implementar header "Batallas Pendientes" con campana de notificaciones e ícono de vista (grid/list)
+- [x] 7.3 Implementar tabs de filtro: "Todas" | "Copa de Liga" (🏆) | "Duelo Diario" (⚔)
+- [x] 7.4 Implementar `src/components/PendingBattleCard.jsx`:
   - Nombre del rival, tipo de batalla
   - Countdown hasta el límite: "Límite dentro de X días, Y horas, Z minutos" (color rojo si urgente)
   - Botón "Reportar" (✏ / editar) — para fase posterior
   - Botón "Vincular" (🔗) — abre `VincularBatallaPanel`
-- [ ] 7.5 Estado vacío cuando no hay batallas pendientes
-- [ ] 7.6 Badge de count en el ícono de Batallas del BottomNav cuando hay pendientes
-- [ ] 7.7 Test: lista se carga, filtros por tipo funcionan, countdown se actualiza en tiempo real
+- [x] 7.5 Estado vacío cuando no hay batallas pendientes
+- [x] 7.6 Badge de count en el ícono de Batallas del BottomNav cuando hay pendientes
+- [x] 7.7 Test: lista se carga, filtros por tipo funcionan, countdown se actualiza en tiempo real
 
 ## 8. Pantalla 6: Asociar Batallas (Panel Vincular)
 
