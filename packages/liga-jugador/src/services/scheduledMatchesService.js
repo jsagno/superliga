@@ -59,13 +59,29 @@ function getFixtureRows(filterType) {
   return filterByType(FIXTURE_PENDING, filterType)
 }
 
+async function fetchActiveSeasonId() {
+  const { data, error } = await supabase
+    .from('season')
+    .select('season_id')
+    .eq('status', 'ACTIVE')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.season_id ?? null
+}
+
 /**
- * Returns pending scheduled matches for the authenticated player.
+ * Returns pending scheduled matches for the authenticated player in the active season.
  * filterType: ALL | CUP | DAILY
  */
 export async function fetchPendingMatches(playerId, filterType = 'ALL') {
   const fixtureRows = getFixtureRows(filterType)
   if (fixtureRows) return fixtureRows
+
+  const seasonId = await fetchActiveSeasonId()
+  if (!seasonId) return []
 
   const { data, error } = await supabase
     .from('scheduled_match')
@@ -80,6 +96,7 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
       player_b_id,
       competition:competition_id ( name )
     `)
+    .eq('season_id', seasonId)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
     .order('deadline_at', { ascending: true, nullsFirst: false })
@@ -128,9 +145,13 @@ export async function fetchPendingMatchesCount(playerId) {
   const fixtureRows = getFixtureRows('ALL')
   if (fixtureRows) return fixtureRows.length
 
+  const seasonId = await fetchActiveSeasonId()
+  if (!seasonId) return 0
+
   const { count, error } = await supabase
     .from('scheduled_match')
     .select('scheduled_match_id', { count: 'exact', head: true })
+    .eq('season_id', seasonId)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
 
