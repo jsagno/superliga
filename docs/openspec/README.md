@@ -16,7 +16,8 @@ openspec/
 │
 ├── products/                ← Product definitions
 │   ├── cron.md              ← CRON product (sync service)
-│   └── liga-admin.md        ← LIGA-ADMIN product (React dashboard)
+│   ├── liga-admin.md        ← LIGA-ADMIN product (React dashboard)
+│   └── liga-jugador.md      ← LIGA-JUGADOR product (player portal)
 │
 ├── features/                ← Feature specifications
 │   ├── cron/
@@ -98,6 +99,12 @@ openspec/
 - Features: [features/liga-admin/](./features/liga-admin/)
 - Architecture: [architecture/liga-admin-technical-spec.md](./architecture/liga-admin-technical-spec.md)
 - UI: [features/liga-admin/admin-dashboard.md](./features/liga-admin/admin-dashboard.md)
+
+**Frontend Developer (LIGA-JUGADOR):**
+- Start: [products/liga-jugador.md](./products/liga-jugador.md)
+- Features: [changes/liga-jugador/](./changes/liga-jugador/)
+- Architecture: [architecture/liga-admin-technical-spec.md](./architecture/liga-admin-technical-spec.md)
+- UI: [changes/liga-jugador/design.md](./changes/liga-jugador/design.md)
 
 **Architect:**
 - Start: [architecture/system-overview.md](./architecture/system-overview.md)

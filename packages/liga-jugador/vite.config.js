@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+    base: '/',
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,

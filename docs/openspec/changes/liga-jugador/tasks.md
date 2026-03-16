@@ -173,35 +173,35 @@
 
 ## 11. Row Level Security (RLS) en Supabase
 
-- [ ] 11.1 Definir política RLS en `app_user` y `app_user_player`: el usuario autenticado solo puede leer su propio vínculo
-- [ ] 11.2 Definir política RLS en `scheduled_match`: el jugador puede leer matches donde participa (`player_a_id`/`player_b_id`) y actualizar solo transiciones permitidas hacia `LINKED`
-- [ ] 11.3 Definir política RLS en `battle`, `battle_round` y `battle_round_player`: acceso de lectura cuando el jugador participa o es el owner lógico del vínculo
-- [ ] 11.4 Definir política RLS en `player`: el usuario puede leer su propio registro a través de `app_user_player`
-- [ ] 11.5 Verificar que desde el portal **no es posible** leer datos de otros jugadores no relacionados
-- [ ] 11.6 Documentar las políticas RLS en `shared/database/README.md`
+- [x] 11.1 Definir política RLS en `app_user` y `app_user_player`: el usuario autenticado solo puede leer su propio vínculo
+- [x] 11.2 Definir política RLS en `scheduled_match`: el jugador puede leer matches donde participa (`player_a_id`/`player_b_id`) y actualizar solo transiciones permitidas hacia `LINKED`
+- [x] 11.3 Definir política RLS en `battle`, `battle_round` y `battle_round_player`: acceso de lectura cuando el jugador participa o es el owner lógico del vínculo
+- [x] 11.4 Definir política RLS en `player`: el usuario puede leer su propio registro a través de `app_user_player`
+- [x] 11.5 Verificar que desde el portal **no es posible** leer datos de otros jugadores no relacionados
+- [x] 11.6 Documentar las políticas RLS en `shared/database/README.md`
 
 ## 12. Integración y Pruebas Finales
 
-- [ ] 12.1 Flujo completo: login → dashboard → ver standings → ver batallas pendientes → vincular batalla
-- [ ] 12.2 Flujo completo: login → historial → click ojo en batalla → ver detalle de rondas y mazos
-- [ ] 12.3 Test con email no autorizado → recibe mensaje de acceso restringido, no puede entrar
-- [ ] 12.4 Test con sesión expirada → redirige automáticamente a login
-- [ ] 12.5 Verificar responsividad mobile (375px, 390px, 414px de ancho)
-- [ ] 12.6 Verificar que el bottom nav no oculta contenido interactivo en ninguna pantalla
-- [ ] 12.7 Verificar que dados los permisos RLS un jugador NO puede ver datos de otro jugador
-- [ ] 12.8 Test de rendimiento: primer load completo del dashboard < 3 segundos en red 4G simulada
+- [x] 12.1 Flujo completo: login → dashboard → ver standings → ver batallas pendientes → vincular batalla
+- [x] 12.2 Flujo completo: login → historial → click ojo en batalla → ver detalle de rondas y mazos
+- [x] 12.3 Test con email no autorizado → recibe mensaje de acceso restringido, no puede entrar
+- [x] 12.4 Test con sesión expirada → redirige automáticamente a login
+- [x] 12.5 Verificar responsividad mobile (375px, 390px, 414px de ancho)
+- [x] 12.6 Verificar que el bottom nav no oculta contenido interactivo en ninguna pantalla
+- [x] 12.7 Verificar que dados los permisos RLS un jugador NO puede ver datos de otro jugador
+- [x] 12.8 Test de rendimiento: primer load completo del dashboard < 3 segundos en red 4G simulada
 
 ## 13. Configuración de Despliegue
 
-- [ ] 13.1 Configurar `vite.config.js` con `base: '/'` y `build.outDir: 'dist'`
-- [ ] 13.2 Añadir `packages/liga-jugador/DEPLOYMENT_CHECKLIST.md`
-- [ ] 13.3 Actualizar `README.md` raíz con instrucciones para levantar `liga-jugador`
-- [ ] 13.4 Verificar que variables de entorno para producción están documentadas
+- [x] 13.1 Configurar `vite.config.js` con `base: '/'` y `build.outDir: 'dist'`
+- [x] 13.2 Añadir `packages/liga-jugador/DEPLOYMENT_CHECKLIST.md`
+- [x] 13.3 Actualizar `README.md` raíz con instrucciones para levantar `liga-jugador`
+- [x] 13.4 Verificar que variables de entorno para producción están documentadas
 
 ## 14. Documentación
 
-- [ ] 14.1 Crear `packages/liga-jugador/README.md` con descripción, setup, y comandos
-- [ ] 14.2 Actualizar `docs/openspec/products/liga-jugador.md` con la especificación completa del producto
-- [ ] 14.3 Actualizar `docs/openspec/changelog.md` con el cambio `liga-jugador`
-- [ ] 14.4 Añadir entrada en `docs/openspec/README.md` referenciando el nuevo producto
+- [x] 14.1 Crear `packages/liga-jugador/README.md` con descripción, setup, y comandos
+- [x] 14.2 Actualizar `docs/openspec/products/liga-jugador.md` con la especificación completa del producto
+- [x] 14.3 Actualizar `docs/openspec/changelog.md` con el cambio `liga-jugador`
+- [x] 14.4 Añadir entrada en `docs/openspec/README.md` referenciando el nuevo producto
 
