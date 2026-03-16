@@ -137,39 +137,39 @@
 **Referencia Stitch:** `dfd831b5ce054c28957e9ce253aced7d`  
 **Archivo:** `src/pages/HistorialBatallas.jsx`
 
-- [ ] 9.1 Añadir a `battlesService.js`:
+- [x] 9.1 Añadir a `battlesService.js`:
   - `fetchPlayerBattleHistory(playerId, filters)` → historial paginado con filtros
   - `fetchPlayerGlobalStats(playerId, seasonId)` → totales: victorias, ratio, etc.
-- [ ] 9.2 Implementar header "Histórico" con botón back (← vuelve al dashboard)
-- [ ] 9.3 Implementar selector de temporada (dropdown expandible)
-- [ ] 9.4 Implementar tabs de tipo de batalla: "Todos" | "Duelo de Guerra" | "Copa de Liga" | "Copa Revenge"
-- [ ] 9.5 Implementar badges de estadísticas globales: "Total: N victorias", "N batallas", "Win Rate X%"
-- [ ] 9.6 Implementar sección "Batallas Recientes" con lista de `BattleCard`:
+- [x] 9.2 Implementar header "Histórico" con botón back (← vuelve al dashboard)
+- [x] 9.3 Implementar selector de temporada (dropdown expandible)
+- [x] 9.4 Implementar tabs de tipo de batalla: "Todos" | "Duelo de Guerra" | "Copa de Liga" | "Copa Revenge"
+- [x] 9.5 Implementar badges de estadísticas globales: "Total: N victorias", "N batallas", "Win Rate X%"
+- [x] 9.6 Implementar sección "Batallas Recientes" con lista de `BattleCard`:
   - Ícono de tipo (⚔ duelo / 🏆 copa)
   - "vs. [nombre del rival]"
   - Score (ej. "2 - 0"), tipo, tiempo relativo
   - **Icono Ojo** (👁 `<Eye />`) que abre `BattleDetailModal`
   - Flecha chevron derecha (expansión opcional en fase 2)
-- [ ] 9.7 Implementar carga progresiva: "Cargando más batallas…" spinner al hacer scroll al final
-- [ ] 9.8 Implementar `src/components/BattleCard.jsx` reutilizable
-- [ ] 9.9 Test: historial carga, filtros funcionan, icono ojo abre el detalle correcto
+- [x] 9.7 Implementar carga progresiva: "Cargando más batallas…" spinner al hacer scroll al final
+- [x] 9.8 Implementar `src/components/BattleCard.jsx` reutilizable
+- [x] 9.9 Test: historial carga, filtros funcionan, icono ojo abre el detalle correcto
 
 ## 10. Componente BattleDetailModal (Icono Ojo)
 
 **Archivo:** `src/components/BattleDetailModal.jsx`
 
-- [ ] 10.1 Adaptar `BattleDetailModal.jsx` de `liga-admin` para uso en `liga-jugador`
+- [x] 10.1 Adaptar `BattleDetailModal.jsx` de `liga-admin` para uso en `liga-jugador`
   - Copiar lógica de fetching de `battle_round` y `battle_round_player`
   - Adaptar estilos a la paleta oscura del portal del jugador
-- [ ] 10.2 Asegurar que el modal muestra:
+- [x] 10.2 Asegurar que el modal muestra:
   - Título: tipo de batalla + fecha
   - Resultado: Victoria/Derrota, score total de coronas
   - Lista de rondas con: round número, resultado, coronas, mazos (imágenes de cartas si disponibles)
   - Nombre e identificador del rival
-- [ ] 10.3 Cerrar modal con ✕ o click fuera del área
-- [ ] 10.4 Accesibilidad: trap focus dentro del modal cuando está abierto, `aria-modal="true"`
-- [ ] 10.5 Test: abre desde historial, muestra datos correctos de la batalla seleccionada
-- [ ] 10.6 Test: abre desde panel de vinculación, muestra datos correctos
+- [x] 10.3 Cerrar modal con ✕ o click fuera del área
+- [x] 10.4 Accesibilidad: trap focus dentro del modal cuando está abierto, `aria-modal="true"`
+- [x] 10.5 Test: abre desde historial, muestra datos correctos de la batalla seleccionada
+- [x] 10.6 Test: abre desde panel de vinculación, muestra datos correctos
 
 ## 11. Row Level Security (RLS) en Supabase
 
