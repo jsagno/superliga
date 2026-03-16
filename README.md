@@ -33,6 +33,14 @@ LigaInterna/
 │       ├── package.json
 │       ├── vite.config.js
 │       └── README.md
+│   │
+│   └── liga-jugador/             # Player portal
+│       ├── src/
+│       ├── tests/
+│       ├── package.json
+│       ├── vite.config.js
+│       ├── DEPLOYMENT_CHECKLIST.md
+│       └── README.md
 │
 ├── shared/                        # Shared resources
 │   └── database/                 # Database schemas, migrations
@@ -72,6 +80,10 @@ LigaInterna/
    # Install liga-admin dependencies
    cd packages/liga-admin
    npm install
+
+      # Install liga-jugador dependencies
+      cd ../liga-jugador
+      npm install
    
    # Install cron dependencies
    cd ../cron
@@ -117,6 +129,27 @@ React 19 admin interface for managing competitive seasons.
 
 **Documentation**: [packages/liga-admin/README.md](./packages/liga-admin/README.md)  
 **Specification**: [docs/openspec/products/liga-admin.md](./docs/openspec/products/liga-admin.md)
+
+### LIGA-JUGADOR - Player Portal
+React 19 mobile-first portal for league players to track their standings, manage battle
+links, and review battle history.
+
+**Documentation**: [packages/liga-jugador/README.md](./packages/liga-jugador/README.md)  
+**Specification**: [docs/openspec/products/liga-jugador.md](./docs/openspec/products/liga-jugador.md)
+
+**Key Features**:
+- Magic-link authentication (email OTP via Supabase)
+- Dashboard with season standings and pending battles
+- Battle linking: connect a Clash Royale battle to a league match
+- Battle history with type filters and win-rate stats
+- Round-by-round battle detail with card images
+- Row Level Security ensures players only see their own data
+
+**Dev server** (`:5174`):
+```bash
+cd packages/liga-jugador
+npm run dev
+```
 
 **Key Features**:
 - Tournament structure management

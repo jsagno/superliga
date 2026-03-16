@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Liga Jugador Portal - March 2026
+
+**Core Functionality**:
+- New mobile-first player portal in `packages/liga-jugador` with protected routes and bottom navigation
+- Player dashboard with active season context, standings summary, and pending battle preview
+- Pending battle management flow with linking panel and battle detail modal
+- Personal battle history with filters, infinite loading, and global performance stats
+
+**Security & Access Control**:
+- Added RLS migration for player portal tables and helper functions for user/player resolution
+- Policies enforce player-scoped access while preserving ADMIN read/write operations from liga-admin
+
+**Testing**:
+- Added full integration E2E suite covering authenticated flows, unauthorized access, session redirect, responsive viewports, and performance baseline
+- Existing E2E suites for dashboard, standings, pending battles, and history remain green
+
+**Deployment & Documentation**:
+- Added deployment checklist with environment, hosting, and smoke-test steps
+- Added product README and updated root README with monorepo setup for liga-jugador
+- Documented RLS strategy and policy matrix in `shared/database/README.md`
+
+**Files Added/Updated**:
+- `supabase/migrations/20260316000000_liga_jugador_rls.sql`
+- `packages/liga-jugador/tests/e2e/integration.spec.js`
+- `packages/liga-jugador/DEPLOYMENT_CHECKLIST.md`
+- `packages/liga-jugador/README.md`
+- `shared/database/README.md`
+- `docs/openspec/products/liga-jugador.md`
+
 #### RES (Card Restrictions) Feature - February 2026
 
 **Core Functionality**:
