@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Eye, X } from 'lucide-react'
 import { fetchUnlinkedBattles, linkBattlesToScheduledMatch } from '../services/battlesService.js'
+import BattleDetailModal from './BattleDetailModal.jsx'
 
 function ResultBadge({ result }) {
   const isWin = result === 'WIN'
@@ -16,25 +17,6 @@ function ResultBadge({ result }) {
   )
 }
 
-function BattleDetailStub({ battle, onClose }) {
-  if (!battle) return null
-
-  return (
-    <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-slate-100">Detalle de batalla</h3>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200" aria-label="Cerrar detalle">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <p className="text-sm text-slate-300">ID: {battle.battleId}</p>
-        <p className="text-sm text-slate-300">Resultado: {battle.result === 'WIN' ? 'Victoria' : 'Derrota'}</p>
-        <p className="text-sm text-slate-300">Score: {battle.score}</p>
-      </div>
-    </div>
-  )
-}
 
 export default function VincularBatallaPanel({ open, onClose, matchContext, appUserId, onLinked }) {
   const [rows, setRows] = useState([])
@@ -42,7 +24,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
   const [loading, setLoading] = useState(false)
   const [linking, setLinking] = useState(false)
   const [error, setError] = useState(null)
-  const [detailBattle, setDetailBattle] = useState(null)
+  const [detailBattleId, setDetailBattleId] = useState(null)
 
   const load = useCallback(async () => {
     if (!open || !matchContext) return
@@ -156,7 +138,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
                 </div>
                 <button
                   type="button"
-                  onClick={() => setDetailBattle(battle)}
+                  onClick={() => setDetailBattleId(battle.battleId)}
                   className="text-slate-300 hover:text-blue-300"
                   aria-label={`Ver detalle de ${battle.battleId}`}
                 >
@@ -180,7 +162,9 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
         </footer>
       </aside>
 
-      <BattleDetailStub battle={detailBattle} onClose={() => setDetailBattle(null)} />
+      {detailBattleId && (
+        <BattleDetailModal battleId={detailBattleId} onClose={() => setDetailBattleId(null)} />
+      )}
     </>
   )
 }
