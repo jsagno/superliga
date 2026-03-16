@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bell, LayoutGrid, RefreshCw, Swords, Trophy } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
 import PendingBattleCard from '../components/PendingBattleCard.jsx'
+import VincularBatallaPanel from '../components/VincularBatallaPanel.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 import {
   fetchPendingMatches,
@@ -15,12 +16,14 @@ const FILTER_TABS = [
 ]
 
 export default function BatallasPendientes() {
-  const { playerId } = usePlayerAuth()
+  const { playerId, appUserId } = usePlayerAuth()
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [matches, setMatches] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [selectedMatch, setSelectedMatch] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const load = useCallback(async () => {
     if (!playerId) return
@@ -46,11 +49,27 @@ export default function BatallasPendientes() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (!toast) return
+    const id = setTimeout(() => setToast(null), 2500)
+    return () => clearTimeout(id)
+  }, [toast])
+
   const titleByFilter = useMemo(() => {
     if (activeFilter === 'CUP') return 'Copa de Liga'
     if (activeFilter === 'DAILY') return 'Duelo Diario'
     return 'Todas las batallas'
   }, [activeFilter])
+
+  function handleLinked(payload) {
+    setMatches((prev) => prev.filter((m) => m.scheduledMatchId !== payload.scheduledMatchId))
+    setPendingCount((prev) => Math.max(0, prev - 1))
+    setToast('Batalla vinculada correctamente')
+  }
+
+  function handleReport() {
+    setToast('Reporte disponible en proxima fase')
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
@@ -113,7 +132,7 @@ export default function BatallasPendientes() {
         ) : error ? (
           <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 px-5 py-8 text-center">
             <p className="text-base font-semibold text-slate-100">No se pudo cargar la lista</p>
-            <p className="mt-2 text-sm text-slate-400">Verifica tu conexión e intenta nuevamente.</p>
+            <p className="mt-2 text-sm text-slate-400">Verifica tu conexion e intenta nuevamente.</p>
             <button
               type="button"
               onClick={load}
@@ -130,11 +149,30 @@ export default function BatallasPendientes() {
         ) : (
           <div className="space-y-3">
             {matches.map((match) => (
-              <PendingBattleCard key={match.scheduledMatchId} match={match} />
+              <PendingBattleCard
+                key={match.scheduledMatchId}
+                match={match}
+                onLink={() => setSelectedMatch(match)}
+                onReport={handleReport}
+              />
             ))}
           </div>
         )}
       </main>
+
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[80] rounded-xl bg-emerald-600 text-white text-sm px-4 py-2 shadow-lg" role="status">
+          {toast}
+        </div>
+      )}
+
+      <VincularBatallaPanel
+        open={Boolean(selectedMatch)}
+        onClose={() => setSelectedMatch(null)}
+        matchContext={selectedMatch}
+        appUserId={appUserId}
+        onLinked={handleLinked}
+      />
 
       <BottomNav pendingCount={pendingCount} />
     </div>

@@ -115,22 +115,22 @@
 **Referencia Stitch:** `133ac58ba0a3448ea275c9387fd41cb2`  
 **Archivo:** `src/components/VincularBatallaPanel.jsx`
 
-- [ ] 8.1 Implementar `src/services/battlesService.js`:
+- [x] 8.1 Implementar `src/services/battlesService.js`:
   - `fetchUnlinkedBattles(matchContext, limit)` → últimas N batallas no vinculadas compatibles con ese `scheduled_match`
   - `linkBattlesToScheduledMatch(scheduledMatchId, battleIds[], appUserId)` → inserta en `scheduled_match_battle_link` y actualiza estado a `LINKED`
-- [ ] 8.2 Implementar panel/sheet deslizable desde abajo (bottom sheet):
+- [x] 8.2 Implementar panel/sheet deslizable desde abajo (bottom sheet):
   - Header: "Vinculando a: [nombre del rival]" + botón ✕ cerrar
   - Subtítulo: "Mostrando últimas N batallas no vinculadas"
-- [ ] 8.3 Cada entrada de batalla en el panel muestra:
+- [x] 8.3 Cada entrada de batalla en el panel muestra:
   - Checkbox de selección
   - Resultado (Victoria ✓ / Derrota ✗) con color (verde/rojo)
   - Score de coronas (ej. "3 - 1")
   - Tiempo relativo ("Hace 23 min", "Hace 1 hora")
   - **Icono Ojo** (👁 `<Eye />`) que abre `BattleDetailModal` con el detalle de esa batalla
-- [ ] 8.4 Footer pegajoso: "Seleccionadas: X de Y" + botón "Vincular Batallas" (deshabilitado si 0 seleccionadas)
-- [ ] 8.5 Al confirmar: llamar a `linkBattlesToScheduledMatch()`, cerrar panel, actualizar la lista de pendientes
-- [ ] 8.6 Feedback de éxito ("✓ Batalla vinculada") y manejo de error
-- [ ] 8.7 Test: abrir panel, seleccionar batallas, vincular, verificar que desaparece del pendiente
+- [x] 8.4 Footer pegajoso: "Seleccionadas: X de Y" + botón "Vincular Batallas" (deshabilitado si 0 seleccionadas)
+- [x] 8.5 Al confirmar: llamar a `linkBattlesToScheduledMatch()`, cerrar panel, actualizar la lista de pendientes
+- [x] 8.6 Feedback de éxito ("✓ Batalla vinculada") y manejo de error
+- [x] 8.7 Test: abrir panel, seleccionar batallas, vincular, verificar que desaparece del pendiente
 
 ## 9. Pantalla 7: Histórico de Batallas Propias
 
@@ -204,3 +204,4 @@
 - [ ] 14.2 Actualizar `docs/openspec/products/liga-jugador.md` con la especificación completa del producto
 - [ ] 14.3 Actualizar `docs/openspec/changelog.md` con el cambio `liga-jugador`
 - [ ] 14.4 Añadir entrada en `docs/openspec/README.md` referenciando el nuevo producto
+
