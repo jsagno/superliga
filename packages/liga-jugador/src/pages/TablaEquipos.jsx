@@ -104,7 +104,7 @@ function LoadingState() {
 }
 
 export default function TablaEquipos() {
-  const { playerId } = usePlayerAuth()
+  const { effectivePlayerId } = usePlayerAuth()
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [zones, setZones] = useState([])
   const [selectedZoneId, setSelectedZoneId] = useState('')
@@ -139,7 +139,7 @@ export default function TablaEquipos() {
   }, [])
 
   const loadStandings = useCallback(async () => {
-    if (!playerId || !selectedSeason?.seasonId) return
+    if (!effectivePlayerId || !selectedSeason?.seasonId) return
 
     setLoading(true)
     setError(false)
@@ -147,7 +147,7 @@ export default function TablaEquipos() {
     try {
       const [zoneRows, context] = await Promise.all([
         fetchSeasonZones(selectedSeason.seasonId),
-        fetchPlayerSeasonContext(playerId, selectedSeason.seasonId),
+        fetchPlayerSeasonContext(effectivePlayerId, selectedSeason.seasonId),
       ])
 
       const zoneId =
@@ -168,7 +168,7 @@ export default function TablaEquipos() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, selectedSeason, selectedZoneId])
+  }, [effectivePlayerId, selectedSeason, selectedZoneId])
 
   useEffect(() => {
     loadStandings()

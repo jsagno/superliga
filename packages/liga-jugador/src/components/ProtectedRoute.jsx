@@ -1,6 +1,7 @@
 import React from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
+import AdminViewAsBar from './AdminViewAsBar.jsx'
 
 /**
  * Wraps all protected routes.
@@ -46,5 +47,10 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />
   }
 
-  return <Outlet />
+  return (
+    <>
+      <AdminViewAsBar />
+      <Outlet />
+    </>
+  )
 }

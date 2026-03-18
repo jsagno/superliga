@@ -44,18 +44,19 @@ export function onAuthStateChange(callback) {
  * After a successful OAuth login, ensures `app_user` exists (upsert)
  * and resolves the player link from `app_user_player`.
  *
- * Returns { appUserId, playerId } on success.
- * Returns null if no `app_user_player` link exists.
+ * Returns { appUserId, playerId, role } on success.
+ * - For PLAYER role: playerId is the linked player_id (null if not yet linked).
+ * - For SUPER_ADMIN role: playerId is null (no player link required).
+ * Returns null if no app_user row can be resolved.
  *
- * The upsert strategy is key for bootstrap: the first time a player
- * authenticates, this creates their `app_user` row so the admin can
- * see it in liga-admin and create the `app_user_player` link.
+ * The upsert strategy uses ignoreDuplicates: true so that an existing admin
+ * role is never accidentally overwritten to PLAYER on re-login.
  */
 export async function resolvePlayerIdentity(session) {
   const user = session?.user
   if (!user) return null
 
-  // 1. Upsert app_user — safe to run on every login
+  // 1. Insert app_user if not exists (ignoreDuplicates: true preserves existing role)
   const { error: upsertError } = await supabase
     .from('app_user')
     .upsert(
@@ -65,7 +66,7 @@ export async function resolvePlayerIdentity(session) {
         full_name: user.user_metadata?.full_name ?? null,
         role: 'PLAYER',
       },
-      { onConflict: 'id', ignoreDuplicates: false },
+      { onConflict: 'id', ignoreDuplicates: true },
     )
 
   if (upsertError) {
@@ -73,7 +74,26 @@ export async function resolvePlayerIdentity(session) {
     throw upsertError
   }
 
-  // 2. Check for app_user_player link
+  // 2. Fetch actual role (may differ from the default 'PLAYER' we tried to insert)
+  const { data: appUser, error: roleError } = await supabase
+    .from('app_user')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (roleError) {
+    console.error('app_user role fetch failed:', roleError)
+    throw roleError
+  }
+
+  const role = appUser?.role ?? 'PLAYER'
+
+  // 3. SUPER_ADMIN: allow access without a player link
+  if (role === 'SUPER_ADMIN') {
+    return { appUserId: user.id, playerId: null, role }
+  }
+
+  // 4. Check for app_user_player link (required for regular players)
   const { data: link, error: linkError } = await supabase
     .from('app_user_player')
     .select('player_id, linked_at')
@@ -87,5 +107,5 @@ export async function resolvePlayerIdentity(session) {
 
   if (!link) return null
 
-  return { appUserId: user.id, playerId: link.player_id }
+  return { appUserId: user.id, playerId: link.player_id, role }
 }

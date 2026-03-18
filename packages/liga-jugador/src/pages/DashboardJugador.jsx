@@ -283,8 +283,8 @@ function LoadingSkeleton() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DashboardJugador() {
-  const { playerId } = usePlayerAuth()
-  const { profile, stats, pendingMatches, loading, error, retry } = useDashboard(playerId)
+  const { effectivePlayerId } = usePlayerAuth()
+  const { profile, stats, pendingMatches, loading, error, retry } = useDashboard(effectivePlayerId)
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">

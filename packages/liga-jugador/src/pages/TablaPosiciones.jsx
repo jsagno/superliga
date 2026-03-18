@@ -150,7 +150,7 @@ function EmptyState({ activeTab, selectedZoneName }) {
 }
 
 export default function TablaPosiciones() {
-  const { playerId } = usePlayerAuth()
+  const { effectivePlayerId } = usePlayerAuth()
   const [seasons, setSeasons] = useState([])
   const [zones, setZones] = useState([])
   const [playerContext, setPlayerContext] = useState(null)
@@ -192,7 +192,7 @@ export default function TablaPosiciones() {
   }, [])
 
   const loadStandings = useCallback(async () => {
-    if (!playerId || !selectedSeasonId) return
+    if (!effectivePlayerId || !selectedSeasonId) return
 
     setLoading(true)
     setError(false)
@@ -200,7 +200,7 @@ export default function TablaPosiciones() {
     try {
       const [zoneRows, context] = await Promise.all([
         fetchSeasonZones(selectedSeasonId),
-        fetchPlayerSeasonContext(playerId, selectedSeasonId),
+        fetchPlayerSeasonContext(effectivePlayerId, selectedSeasonId),
       ])
 
       const validZoneIds = new Set(zoneRows.map((zone) => zone.zoneId))
@@ -235,7 +235,7 @@ export default function TablaPosiciones() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab, playerId, selectedSeasonId, selectedZoneId])
+  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId])
 
   useEffect(() => {
     loadStandings()
@@ -321,7 +321,7 @@ export default function TablaPosiciones() {
                 className="max-h-[58vh] space-y-3 overflow-y-auto pr-1"
               >
                 {standings.map((row) => {
-                  const isCurrentPlayer = row.playerId === playerId
+                  const isCurrentPlayer = row.playerId === effectivePlayerId
                   return (
                     <StandingsRow
                       key={`${row.playerId}-${row.zoneId}-${row.position}`}
