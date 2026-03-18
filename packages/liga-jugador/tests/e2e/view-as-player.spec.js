@@ -38,14 +38,14 @@ test.describe('View-as-player — FR-VAP-01: admin-only visibility', () => {
     await expect(page.getByRole('button', { name: /Ver como/i })).not.toBeVisible()
   })
 
-  test('authenticated SUPER_ADMIN sees "Ver como" button on dashboard', async ({ page }) => {
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+  test('authenticated SUPER_USER sees "Ver como" button on dashboard', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/dashboard')
     await expect(page.getByRole('button', { name: /Ver como/i })).toBeVisible()
   })
 
-  test('authenticated SUPER_ADMIN sees "Ver como" button on standings page', async ({ page }) => {
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+  test('authenticated SUPER_USER sees "Ver como" button on standings page', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/tabla')
     await expect(page.getByRole('button', { name: /Ver como/i })).toBeVisible()
   })
@@ -55,7 +55,7 @@ test.describe('View-as-player — FR-VAP-01: admin-only visibility', () => {
 
 test.describe('View-as-player — FR-VAP-04/05: persistent indicator and exit', () => {
   test('opening the View-as modal shows season and player selectors', async ({ page }) => {
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/dashboard')
 
     await page.getByRole('button', { name: /Ver como/i }).click()
@@ -75,7 +75,7 @@ test.describe('View-as-player — FR-VAP-04/05: persistent indicator and exit', 
   })
 
   test('modal can be dismissed by clicking backdrop', async ({ page }) => {
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/dashboard')
 
     await page.getByRole('button', { name: /Ver como/i }).click()
@@ -106,15 +106,15 @@ test.describe('View-as-player — structural smoke tests', () => {
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
 
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/dashboard')
 
     // No JS errors triggered by admin auth path
     expect(errors).toHaveLength(0)
   })
 
-  test('SUPER_ADMIN has no impersonation banner on load (not impersonating)', async ({ page }) => {
-    await setE2EAuth(page, { authenticated: true, role: 'SUPER_ADMIN' })
+  test('SUPER_USER has no impersonation banner on load (not impersonating)', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
     await page.goto('/dashboard')
 
     // Banner only appears when actively impersonating

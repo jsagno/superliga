@@ -8,6 +8,7 @@ import { ArrowLeft, User, Eye, EyeOff, LogIn, Mail } from "lucide-react";
 
 export default function LoginAdmin() {
   const navigate = useNavigate();
+  const ALLOWED_ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "SUPER_USER"]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +42,18 @@ export default function LoginAdmin() {
        });
        if (error) throw error;
        if (!data?.session) throw new Error("No session returned.");
+
+       const { data: appUser, error: roleError } = await supabase
+         .from("app_user")
+         .select("role")
+         .eq("id", data.session.user.id)
+         .maybeSingle();
+
+       if (roleError) throw roleError;
+       if (!ALLOWED_ADMIN_ROLES.has(appUser?.role ?? "")) {
+         await supabase.auth.signOut();
+         throw new Error("Access denied. Admin role required.");
+       }
 
       // Opción simple por ahora:
       navigate("/admin");

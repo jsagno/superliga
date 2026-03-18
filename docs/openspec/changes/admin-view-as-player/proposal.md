@@ -25,7 +25,7 @@ This is a **read-only observation mode** for MVP.
 ## Scope
 
 ### In Scope (MVP)
-- Admin eligibility check to access impersonation controls (`SUPER_ADMIN` role only).
+- Admin eligibility check to access impersonation controls (`SUPER_USER` role only).
 - Season-aware dropdown with valid players in season roster.
 - Global context switch across liga-jugador pages.
 - Clear visual banner/tag indicating current impersonated player.

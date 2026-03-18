@@ -17,7 +17,7 @@ This feature is intended for troubleshooting and validation of the player experi
 ## Functional Requirements
 
 ### FR-VAP-01: Admin-only visibility
-- The "View as player" control MUST be visible only to users with `app_user.role = 'SUPER_ADMIN'`.
+- The "View as player" control MUST be visible only to users with `app_user.role = 'SUPER_USER'`.
 - All other users MUST never see or access this control.
 
 ### FR-VAP-02: Season-scoped player dropdown
@@ -64,7 +64,7 @@ This feature is intended for troubleshooting and validation of the player experi
 ## Data Requirements
 
 ### Sources
-- `app_user` (role/permissions — `SUPER_ADMIN` required)
+- `app_user` (role/permissions — `SUPER_USER` required)
 - `app_user_player` (actor mapping)
 - `season` (active/selectable seasons)
 - `season_zone_team_player` (valid players in season)
