@@ -23,8 +23,8 @@ function readE2EAuthIdentity() {
   if (authMode !== 'authenticated') return null
 
   const role = window.localStorage.getItem(E2E_ROLE_STORAGE_KEY) ?? 'PLAYER'
-  // SUPER_ADMIN in E2E has no player link by default
-  const playerId = role === 'SUPER_ADMIN' ? null : E2E_PLAYER_ID
+  // SUPER_ADMIN/SUPER_USER in E2E has no player link by default
+  const playerId = role === 'SUPER_ADMIN' || role === 'SUPER_USER' ? null : E2E_PLAYER_ID
 
   return {
     session: { user: { id: E2E_APP_USER_ID } },
@@ -55,7 +55,7 @@ export function PlayerAuthProvider({ children }) {
   const [isImpersonating, setIsImpersonating] = useState(false)
   const [impersonationTarget, setImpersonationTarget] = useState(null)
 
-  const isSuperAdmin = role === 'SUPER_ADMIN'
+  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'SUPER_USER'
   const effectivePlayerId = isImpersonating ? impersonationTarget?.playerId ?? null : playerId
 
   const startImpersonation = useCallback(({ playerId: targetPlayerId, name, seasonId }) => {
@@ -91,7 +91,7 @@ export function PlayerAuthProvider({ children }) {
       const identity = await resolvePlayerIdentity(newSession)
 
       if (!identity) {
-        // No app_user_player link and not SUPER_ADMIN — deny access and sign out
+        // No app_user_player link and not SUPER_ADMIN/SUPER_USER — deny access and sign out
         await signOut()
         setSession(null)
         setAppUserId(null)

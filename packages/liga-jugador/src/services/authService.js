@@ -46,7 +46,7 @@ export function onAuthStateChange(callback) {
  *
  * Returns { appUserId, playerId, role } on success.
  * - For PLAYER role: playerId is the linked player_id (null if not yet linked).
- * - For SUPER_ADMIN role: playerId is null (no player link required).
+ * - For SUPER_ADMIN/SUPER_USER role: playerId is null (no player link required).
  * Returns null if no app_user row can be resolved.
  *
  * The upsert strategy uses ignoreDuplicates: true so that an existing admin
@@ -88,8 +88,8 @@ export async function resolvePlayerIdentity(session) {
 
   const role = appUser?.role ?? 'PLAYER'
 
-  // 3. SUPER_ADMIN: allow access without a player link
-  if (role === 'SUPER_ADMIN') {
+  // 3. SUPER_ADMIN/SUPER_USER: allow access without a player link
+  if (role === 'SUPER_ADMIN' || role === 'SUPER_USER') {
     return { appUserId: user.id, playerId: null, role }
   }
 

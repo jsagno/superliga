@@ -1,7 +1,7 @@
 /**
  * AdminViewAsBar — renders view-as controls and the impersonation banner.
  *
- * Visible only for users with role SUPER_ADMIN.
+ * Visible only for users with role SUPER_ADMIN or SUPER_USER.
  * Contains:
  *   - Persistent banner (shown while impersonating) with player info + exit button.
  *   - "View as" trigger button (shown when NOT impersonating).

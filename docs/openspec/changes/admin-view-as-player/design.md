@@ -37,7 +37,7 @@ Rules:
 Admin-only access required.
 
 Eligibility source options (choose one in implementation):
-- `app_user.role = 'SUPER_ADMIN'` (required for impersonation)
+- `app_user.role = 'SUPER_USER'` (required for impersonation)
 - Explicit permission table/claim if role values differ.
 
 ### 3) Player Source for Dropdown

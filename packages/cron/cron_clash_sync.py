@@ -586,7 +586,7 @@ _admin_user_cache: Optional[str] = None
 
 def get_cached_admin_user(sb: Client) -> Optional[str]:
     """
-    Fetch the first admin app_user UUID (filter by role='ADMIN', order by created_at ASC).
+    Fetch the first admin app_user UUID (filter by role in ['SUPER_USER', 'SUPER_ADMIN'], order by created_at ASC).
     Cache result to avoid repeated queries during a sync run.
     """
     global _admin_user_cache
@@ -596,7 +596,7 @@ def get_cached_admin_user(sb: Client) -> Optional[str]:
     try:
         res = sb.table("app_user") \
             .select("id") \
-            .eq("role", "ADMIN") \
+            .in_("role", ["SUPER_USER", "SUPER_ADMIN"]) \
             .order("created_at", desc=False) \
             .limit(1) \
             .execute()

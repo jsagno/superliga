@@ -22,7 +22,7 @@
 
 ## 4. Security
 
-- [x] 4.1 Add server-side validation for `SUPER_ADMIN` role on impersonation actions.
+- [x] 4.1 Add server-side validation for `SUPER_USER` role on impersonation actions.
 - [x] 4.2 Add negative-path handling for unauthorized access.
 
 ## 5. Testing
