@@ -7,12 +7,15 @@ import { supabase } from '../supabaseClient.js'
 export async function fetchSelectableSeasons() {
   const { data, error } = await supabase
     .from('season')
-    .select('id, name')
+    .select('season_id, description')
     .order('created_at', { ascending: false })
     .limit(10)
 
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map((season) => ({
+    id: season.season_id,
+    name: season.description,
+  }))
 }
 
 /**
@@ -27,9 +30,9 @@ export async function fetchSeasonPlayers(seasonId) {
       player_id,
       player:player_id ( name, nick ),
       team:team_id ( name ),
-      season_zone:season_zone_id ( zone:zone_id ( name ) )
+      season_zone!zone_id!inner ( season_id, name )
     `)
-    .eq('season_id', seasonId)
+    .eq('season_zone.season_id', seasonId)
 
   if (error) throw error
 
@@ -44,7 +47,7 @@ export async function fetchSeasonPlayers(seasonId) {
       name: row.player?.name ?? '—',
       nick: row.player?.nick ?? null,
       teamName: row.team?.name ?? null,
-      zoneName: row.season_zone?.zone?.name ?? null,
+      zoneName: row.season_zone?.name ?? null,
     })
   }
 
