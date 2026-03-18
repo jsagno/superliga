@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Eye, X } from 'lucide-react'
 import { fetchUnlinkedBattles, linkBattlesToScheduledMatch } from '../services/battlesService.js'
 import BattleDetailModal from './BattleDetailModal.jsx'
+import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 
 function ResultBadge({ result }) {
   const isWin = result === 'WIN'
@@ -19,6 +20,7 @@ function ResultBadge({ result }) {
 
 
 export default function VincularBatallaPanel({ open, onClose, matchContext, appUserId, onLinked }) {
+  const { isImpersonating } = usePlayerAuth()
   const [rows, setRows] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(false)
@@ -59,7 +61,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
   }
 
   async function handleConfirmLink() {
-    if (!canLink || !matchContext) return
+    if (!canLink || !matchContext || isImpersonating) return
 
     setLinking(true)
     setError(null)
@@ -151,14 +153,18 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
 
         <footer className="px-4 py-3 border-t border-slate-800 flex items-center justify-between gap-3 sticky bottom-0 bg-slate-900">
           <p className="text-xs text-slate-400">Seleccionadas: {selectedCount} de {totalCount}</p>
-          <button
-            type="button"
-            onClick={handleConfirmLink}
-            disabled={!canLink}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-500"
-          >
-            {linking ? 'Vinculando...' : 'Vincular Batallas'}
-          </button>
+          {isImpersonating ? (
+            <p className="text-xs text-amber-400 font-medium">Modo solo lectura — en vista como jugador</p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConfirmLink}
+              disabled={!canLink}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-500"
+            >
+              {linking ? 'Vinculando...' : 'Vincular Batallas'}
+            </button>
+          )}
         </footer>
       </aside>
 

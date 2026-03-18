@@ -15,7 +15,7 @@ const FILTER_TABS = [
 ]
 
 export default function BatallasPendientes() {
-  const { playerId } = usePlayerAuth()
+  const { effectivePlayerId } = usePlayerAuth()
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [matches, setMatches] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
@@ -23,14 +23,14 @@ export default function BatallasPendientes() {
   const [error, setError] = useState(false)
 
   const load = useCallback(async () => {
-    if (!playerId) return
+    if (!effectivePlayerId) return
     setLoading(true)
     setError(false)
 
     try {
       const [rows, count] = await Promise.all([
-        fetchPendingMatches(playerId, activeFilter),
-        fetchPendingMatchesCount(playerId),
+        fetchPendingMatches(effectivePlayerId, activeFilter),
+        fetchPendingMatchesCount(effectivePlayerId),
       ])
       setMatches(rows)
       setPendingCount(count)
@@ -40,7 +40,7 @@ export default function BatallasPendientes() {
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, playerId])
+  }, [activeFilter, effectivePlayerId])
 
   useEffect(() => {
     load()
