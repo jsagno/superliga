@@ -4,6 +4,18 @@ import { supabase } from "../../lib/supabaseClient"; // ajustá si tu path es ot
 import { getCardVariantFromEvolutionLevel } from "../../utils/cardParser";
 
 const DEFAULT_BATTLE_CUTOFF_MINUTES = 600;
+const QUERY_TIMEOUT_MS = 12000;
+
+function withTimeout(promise, ms, timeoutMessage) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 function parseTzOffsetToMinutes(offset) {
   if (typeof offset !== "string") return 0;
@@ -672,6 +684,7 @@ export default function BattlesHistory() {
   const seasonFilterId = searchParams.get("seasonId") || "";
 
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [battleIds, setBattleIds] = useState([]);
   const [page, setPage] = useState(0);
   const pageSize = 12;
@@ -919,14 +932,23 @@ export default function BattlesHistory() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      setLoadError("");
       try {
         setPage(0);
         setExpanded(new Set());
 
         const { start, end } = sameDayRange(from, to);
         let ids = playerId 
-          ? await fetchBattleIdsByPlayer(playerId, { fromISO: start, toISO: end, mode, zoneId, teamId })
-          : await fetchAllBattles({ fromISO: start, toISO: end, mode, zoneId, teamId });
+          ? await withTimeout(
+              fetchBattleIdsByPlayer(playerId, { fromISO: start, toISO: end, mode, zoneId, teamId }),
+              QUERY_TIMEOUT_MS,
+              "fetchBattleIdsByPlayer timeout",
+            )
+          : await withTimeout(
+              fetchAllBattles({ fromISO: start, toISO: end, mode, zoneId, teamId }),
+              QUERY_TIMEOUT_MS,
+              "fetchAllBattles timeout",
+            );
 
         // Apply season filter if selected
         if (seasonFilterId && ids.length > 0 && seasonsCatalog.length > 0) {
@@ -1073,6 +1095,7 @@ export default function BattlesHistory() {
         setBattleIds(ids);
       } catch (e) {
         console.error(e);
+        setLoadError("No se pudieron cargar las batallas. Reintentá ajustando los filtros.");
         setBattleIds([]);
       } finally {
         setLoading(false);
@@ -1093,8 +1116,13 @@ export default function BattlesHistory() {
         return;
       }
       setLoading(true);
+      setLoadError("");
       try {
-        const res = await fetchBattlesWithDetails(battleIds, { page, pageSize });
+        const res = await withTimeout(
+          fetchBattlesWithDetails(battleIds, { page, pageSize }),
+          QUERY_TIMEOUT_MS,
+          "fetchBattlesWithDetails timeout",
+        );
         setBattles(res.battles);
         setRounds(res.rounds);
         setPlayersById(res.playersById);
@@ -1226,6 +1254,7 @@ export default function BattlesHistory() {
         setRestrictionConfigs(resConfigs);
       } catch (e) {
         console.error(e);
+        setLoadError("No se pudieron cargar los detalles de batallas.");
         setBattles([]);
         setRounds([]);
         setPlayersById({});
@@ -1489,6 +1518,12 @@ export default function BattlesHistory() {
         {loading && (
           <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
             Cargando…
+          </div>
+        )}
+
+        {!loading && loadError && (
+          <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
+            {loadError}
           </div>
         )}
 

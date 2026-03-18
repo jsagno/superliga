@@ -3,6 +3,18 @@ import { supabase } from "../lib/supabaseClient"; // <-- ajustá si tu path es o
 
 const AuthContext = createContext(null);
 const ALLOWED_ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "SUPER_USER"]);
+const AUTH_TIMEOUT_MS = 8000;
+
+function withTimeout(promise, ms, timeoutMessage) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -35,29 +47,63 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    async function init() {
-      setLoading(true);
-      const { data, error } = await supabase.auth.getSession();
+    async function resolveRoleForSession(nextSession) {
       if (!mounted) return;
 
-      if (error) {
-        console.error("getSession error:", error);
+      setSession(nextSession ?? null);
+
+      if (!nextSession?.user?.id) {
+        setRole(null);
+        return;
+      }
+
+      try {
+        await withTimeout(
+          fetchUserRole(nextSession.user.id),
+          AUTH_TIMEOUT_MS,
+          "fetchUserRole timeout",
+        );
+      } catch (err) {
+        console.error("resolveRoleForSession error:", err);
+        setRole(null);
+      }
+    }
+
+    async function init() {
+      setLoading(true);
+      try {
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_TIMEOUT_MS,
+          "getSession timeout",
+        );
+
+        if (!mounted) return;
+
+        if (error) {
+          console.error("getSession error:", error);
+          setSession(null);
+          setRole(null);
+        } else {
+          await resolveRoleForSession(data.session ?? null);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        console.error("init auth error:", err);
         setSession(null);
         setRole(null);
-      } else {
-        const nextSession = data.session ?? null;
-        setSession(nextSession);
-        await fetchUserRole(nextSession?.user?.id ?? null);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
     }
 
     init();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession ?? null);
-      await fetchUserRole(newSession?.user?.id ?? null);
-      setLoading(false);
+      if (!mounted) return;
+      setLoading(true);
+      await resolveRoleForSession(newSession ?? null);
+      if (mounted) setLoading(false);
     });
 
     return () => {
