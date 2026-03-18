@@ -22,6 +22,7 @@ export default function PlayerEdit() {
   const [name, setName] = useState("");
   const [nick, setNick] = useState("");
   const [tag, setTag] = useState("");
+  const [discordUserId, setDiscordUserId] = useState("");
   const [active, setActive] = useState(true);
   const [avatar, setAvatar] = useState(null);
 
@@ -38,7 +39,7 @@ export default function PlayerEdit() {
 
       const { data: pData, error: pErr } = await supabase
         .from("player")
-        .select("player_id,name,nick")
+        .select("player_id,name,nick,discord_user_id")
         .eq("player_id", playerId)
         .maybeSingle();
 
@@ -50,6 +51,7 @@ export default function PlayerEdit() {
 
       setName(pData?.name ?? "");
       setNick(pData?.nick ?? "");
+      setDiscordUserId(pData?.discord_user_id ?? "");
       // try to pick an avatar URL from common fields if present
       const foundAvatar =
         pData?.avatar_url || pData?.photo_url || pData?.image_url || pData?.photo || pData?.avatar || null;
@@ -79,7 +81,11 @@ export default function PlayerEdit() {
     if (isNew) {
       const { data, error } = await supabase
         .from("player")
-        .insert([{ name: name.trim() || null, nick: nick.trim() || null }])
+        .insert([{ 
+          name: name.trim() || null, 
+          nick: nick.trim() || null,
+          discord_user_id: discordUserId.trim() || null
+        }])
         .select("player_id")
         .single();
 
@@ -92,7 +98,11 @@ export default function PlayerEdit() {
     } else {
       const { error } = await supabase
         .from("player")
-        .update({ name: name.trim() || null, nick: nick.trim() || null })
+        .update({ 
+          name: name.trim() || null, 
+          nick: nick.trim() || null,
+          discord_user_id: discordUserId.trim() || null
+        })
         .eq("player_id", pid);
 
       if (error) {
@@ -220,6 +230,25 @@ export default function PlayerEdit() {
                   <img alt="Crown Icon" class="h-6 w-6 opacity-50 grayscale invert dark:invert-0" data-alt="Small crown icon indicating game rank" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGhG4cclcOMHasxYDqhwUfVwofPkF-TtxFrSj7McxJMkPuWxp_TEOXipqM6bhjQgaS4xugnDmeBlzQeFOer-WHWruqFVa7hp_0p9ECGjvc79i0lRMtfPcM--ufPB8kwacz7KeFORspgKDA19My--UTR9SD_nmkT_gHLvynApVPrfxRhogzMVcy9MlQfXZJvjySQRMqrYz5WzhrNS1q4zlX5hjHVGW_Sq_zPLyfrBkeliDJMp2rt6I45D0mB8DV_tBixhPF2Czg7jE" />
                 </div>                </div>
                 <p className="text-xs text-slate-500 mt-2">Si cambia, se cierra el tag anterior (valid_to) y se inserta uno nuevo con valid_from.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 flex justify-between">
+                  Discord User ID
+                  <span className="text-xs font-normal text-slate-500">Para menciones en notificaciones</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                    <span className="material-symbols-outlined text-slate-400" style={{fontSize:20}}>tag</span>
+                  </div>
+                  <input
+                    className="w-full h-14 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#1c212b] pl-11 pr-4 text-base font-normal text-slate-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-slate-400 transition-all"
+                    value={discordUserId}
+                    onChange={(e) => setDiscordUserId(e.target.value)}
+                    placeholder="123456789012345678"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">ID numérico de Discord. Puedes encontrarlo habilitando modo desarrollador en Discord.</p>
               </div>
               
               <div className="mt-2 bg-white dark:bg-[#1c212b] rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-sm">

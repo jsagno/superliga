@@ -4,10 +4,38 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
-import { parseCardPayload, sortCardsByRarity } from '../utils/cardParser';
+import {
+  parseCardPayload,
+  sortCardsByRarity,
+  getBaseCardId,
+  getCardIconForVariant,
+  getCardVariantFromSelectionId,
+  getCardVariantLabel,
+} from '../utils/cardParser';
 
 // Configuration
 const BATCH_SIZE = 50;
+
+function normalizeRestrictionVariant(variant) {
+  const normalized = (variant || 'normal').toLowerCase();
+  if (normalized === 'hero' || normalized === 'evolution' || normalized === 'all') {
+    return normalized;
+  }
+  return 'normal';
+}
+
+function normalizeRestrictionInput(restriction) {
+  const cardId = getBaseCardId(restriction.card_id);
+  const restrictionVariant = normalizeRestrictionVariant(
+    restriction.restriction_variant || getCardVariantFromSelectionId(restriction.card_id)
+  );
+
+  return {
+    ...restriction,
+    card_id: cardId,
+    restriction_variant: restrictionVariant,
+  };
+}
 
 /**
  * Fetch all restrictions for a season with related player and card data
@@ -53,6 +81,7 @@ export async function fetchRestrictions(seasonId) {
         restriction_id,
         player_id,
         card_id,
+        restriction_variant,
         reason,
         created_by,
         created_at,
@@ -122,11 +151,18 @@ export async function fetchRestrictions(seasonId) {
       }
 
       // Parse card payload for frontend rendering
-      const cardParsed = parseCardPayload(cardData?.raw_payload);
+      const restrictionVariant = normalizeRestrictionVariant(restriction.restriction_variant);
+      const parsedBaseCard = parseCardPayload(cardData?.raw_payload);
+      const cardParsed = {
+        ...parsedBaseCard,
+        icon: getCardIconForVariant(parsedBaseCard, restrictionVariant),
+      };
 
       grouped[playerId].restrictions.push({
         restriction_id: restriction.restriction_id,
         card_id: restriction.card_id,
+        restriction_variant: restrictionVariant,
+        restriction_variant_label: getCardVariantLabel(restrictionVariant),
         card_name: cardData?.name || 'Unknown Card',
         card_parsed: cardParsed,
         reason: restriction.reason,
@@ -153,7 +189,10 @@ export async function fetchRestrictions(seasonId) {
         if (rarityA !== rarityB) return rarityA - rarityB;
         
         // Then by card name
-        return (a.card_name || '').localeCompare(b.card_name || '');
+        const nameCompare = (a.card_name || '').localeCompare(b.card_name || '');
+        if (nameCompare !== 0) return nameCompare;
+
+        return (a.restriction_variant || 'normal').localeCompare(b.restriction_variant || 'normal');
       }),
     }));
 
@@ -191,15 +230,18 @@ export async function createRestriction(restriction) {
   }
 
   try {
+    const normalizedRestriction = normalizeRestrictionInput(restriction);
+
     const { data, error } = await supabase
       .from('season_card_restriction')
       .insert({
         restriction_id: crypto.randomUUID(),
-        season_id: restriction.season_id,
-        player_id: restriction.player_id,
-        card_id: restriction.card_id,
-        reason: restriction.reason || null,
-        created_by: restriction.created_by,
+        season_id: normalizedRestriction.season_id,
+        player_id: normalizedRestriction.player_id,
+        card_id: normalizedRestriction.card_id,
+        restriction_variant: normalizedRestriction.restriction_variant,
+        reason: normalizedRestriction.reason || null,
+        created_by: normalizedRestriction.created_by,
         created_at: new Date().toISOString(),
       })
       .select()
@@ -240,25 +282,34 @@ export async function bulkCreateRestrictions(restrictions, seasonId) {
 
   const errors = [];
   let successCount = 0;
+  let totalRows = 0;
 
   try {
     // Prepare rows with IDs and timestamps
-    // Normalize card_id: remove '_evo' suffix if present (evolution cards use same base card_id)
-    const rows = restrictions.map(r => {
-      const normalizedCardId = typeof r.card_id === 'string' && r.card_id.endsWith('_evo')
-        ? BigInt(r.card_id.replace('_evo', ''))
-        : r.card_id;
+    const dedupedRows = new Map();
 
-      return {
+    restrictions.forEach(r => {
+      const normalizedRestriction = normalizeRestrictionInput(r);
+
+      const row = {
         restriction_id: crypto.randomUUID(),
         season_id: seasonId,
-        player_id: r.player_id,
-        card_id: normalizedCardId,
-        reason: r.reason || null,
-        created_by: r.created_by,
+        player_id: normalizedRestriction.player_id,
+        card_id: normalizedRestriction.card_id,
+        restriction_variant: normalizedRestriction.restriction_variant,
+        reason: normalizedRestriction.reason || null,
+        created_by: normalizedRestriction.created_by,
         created_at: new Date().toISOString(),
       };
+
+      dedupedRows.set(
+        `${seasonId}:${normalizedRestriction.player_id}:${normalizedRestriction.card_id}:${normalizedRestriction.restriction_variant}`,
+        row
+      );
     });
+
+    const rows = Array.from(dedupedRows.values());
+    totalRows = rows.length;
 
     // Split into batches
     const batches = [];
@@ -273,7 +324,7 @@ export async function bulkCreateRestrictions(restrictions, seasonId) {
       try {
         const { error } = await supabase
           .from('season_card_restriction')
-          .upsert(batch, { onConflict: 'season_id,player_id,card_id' });
+          .upsert(batch, { onConflict: 'season_id,player_id,card_id,restriction_variant' });
 
         if (error) throw error;
         successCount += batch.length;
@@ -294,7 +345,7 @@ export async function bulkCreateRestrictions(restrictions, seasonId) {
 
   return {
     success: successCount,
-    failed: restrictions.length - successCount,
+    failed: totalRows - successCount,
     errors,
   };
 }
@@ -417,24 +468,35 @@ export async function bulkDeleteRestrictions(restrictionIds) {
  * //   ...
  * // ]
  */
-export async function checkExistingRestrictions(seasonId, playerIds, cardIds) {
-  if (!seasonId || !playerIds?.length || !cardIds?.length) {
+export async function checkExistingRestrictions(seasonId, playerIds, cardSelections) {
+  if (!seasonId || !playerIds?.length || !cardSelections?.length) {
     return [];
   }
 
   try {
-    const normalizedCardIds = cardIds.map(c => Number(c)).filter(c => !Number.isNaN(c));
+    const normalizedSelections = cardSelections
+      .map(selection => normalizeRestrictionInput(selection))
+      .filter(selection => !Number.isNaN(selection.card_id));
+
+    const normalizedCardIds = [...new Set(normalizedSelections.map(selection => selection.card_id))];
 
     const { data, error } = await supabase
       .from('season_card_restriction')
-      .select('restriction_id, season_id, player_id, card_id')
+      .select('restriction_id, season_id, player_id, card_id, restriction_variant')
       .eq('season_id', seasonId)
       .in('player_id', playerIds)
       .in('card_id', normalizedCardIds);
 
     if (error) throw error;
 
-    return data || [];
+    return (data || []).filter(row => normalizedSelections.some(selection => {
+      if (selection.card_id !== Number(row.card_id)) {
+        return false;
+      }
+
+      const existingVariant = normalizeRestrictionVariant(row.restriction_variant);
+      return existingVariant === 'all' || existingVariant === selection.restriction_variant;
+    }));
   } catch (error) {
     console.error('Error checking existing restrictions:', error);
     throw error;
@@ -517,6 +579,7 @@ export async function getRestrictionStats(seasonId) {
         restriction_id,
         player_id,
         card_id,
+        restriction_variant,
         card:card_id (raw_payload)
       `)
       .eq('season_id', seasonId);
@@ -536,7 +599,7 @@ export async function getRestrictionStats(seasonId) {
 
     restrictions.forEach(r => {
       playersSet.add(r.player_id);
-      cardsSet.add(r.card_id);
+      cardsSet.add(`${r.card_id}:${normalizeRestrictionVariant(r.restriction_variant)}`);
       
       const rarity = (r.card?.raw_payload?.rarity || 'common').toLowerCase();
       if (rarityCount[rarity] !== undefined) {

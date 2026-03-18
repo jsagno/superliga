@@ -1,6 +1,58 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient"; // ajustá si tu path es otro
+import { getCardVariantFromEvolutionLevel } from "../../utils/cardParser";
+
+const DEFAULT_BATTLE_CUTOFF_MINUTES = 600;
+
+function parseTzOffsetToMinutes(offset) {
+  if (typeof offset !== "string") return 0;
+  const match = offset.trim().match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!match) return 0;
+
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number(match[2]);
+  const minutes = Number(match[3]);
+  return sign * ((hours * 60) + minutes);
+}
+
+function getBattleGameDateBySeason(battleTime, season) {
+  if (!battleTime || !season) return null;
+
+  const battleDate = new Date(battleTime);
+  if (Number.isNaN(battleDate.getTime())) return null;
+
+  const tzOffsetMinutes = parseTzOffsetToMinutes(season.battle_cutoff_tz_offset || "+00:00");
+  const cutoffMinutes = Number.isFinite(Number(season.battle_cutoff_minutes))
+    ? Number(season.battle_cutoff_minutes)
+    : DEFAULT_BATTLE_CUTOFF_MINUTES;
+
+  const shifted = new Date(battleDate.getTime() + (tzOffsetMinutes * 60 * 1000));
+  shifted.setUTCMinutes(shifted.getUTCMinutes() - cutoffMinutes);
+
+  return shifted.toISOString().split("T")[0];
+}
+
+function isBattleWithinSeasonWindow(battleTime, season) {
+  if (!battleTime || !season?.duel_start_date || !season?.duel_end_date) return false;
+
+  const gameDate = getBattleGameDateBySeason(battleTime, season);
+  if (!gameDate) return false;
+
+  return gameDate >= season.duel_start_date && gameDate <= season.duel_end_date;
+}
+
+function resolveBattleSeason(battleTime, seasons) {
+  if (!battleTime || !Array.isArray(seasons) || seasons.length === 0) return null;
+
+  const sortedSeasons = [...seasons].sort((a, b) => {
+    const ad = a?.duel_start_date || "";
+    const bd = b?.duel_start_date || "";
+    return bd.localeCompare(ad);
+  });
+
+  return sortedSeasons.find(season => isBattleWithinSeasonWindow(battleTime, season)) || null;
+}
 
 // Helpers
 function fmtDateTime(iso) {
@@ -156,22 +208,30 @@ async function fetchPlayersIndex() {
 }
 
 // Fetch extreme/risky configuration for a player at a specific date
-async function fetchPlayerExtremeConfig(playerId, battleDate) {
-  if (!playerId || !battleDate) return null;
-  
-  // Use the same game day logic as the rest of the app
-  // Game day changes at 09:50 UTC, so battles before 09:50 are part of the previous day
-  const gameTime = new Date(battleDate);
-  gameTime.setUTCMinutes(gameTime.getUTCMinutes() - 590); // -9h 50min
-  
-  const battleDateStr = gameTime.toISOString().split('T')[0];
+async function fetchPlayerExtremeConfig(playerId, battleDate, battleSeason, seasonExtremeConfigMap) {
+  if (!playerId || !battleDate || !battleSeason) return null;
+
+  if (battleSeason.is_extreme_config_disabled) {
+    return null;
+  }
+
+  const seasonConfigCards = seasonExtremeConfigMap?.[battleSeason.season_id];
+  if (!Array.isArray(seasonConfigCards) || seasonConfigCards.length === 0) {
+    return null;
+  }
+
+  const battleDateStr = getBattleGameDateBySeason(battleDate, battleSeason);
+  if (!battleDateStr) {
+    return null;
+  }
   
   // Check if player was in extreme/risky period
   // Get all participants for this player and filter by date in JS
   const { data: participants, error: e1 } = await supabase
     .from('season_extreme_participant')
     .select('season_id, team_id, participant_type, start_date, end_date')
-    .eq('player_id', playerId);
+    .eq('player_id', playerId)
+    .eq('season_id', battleSeason.season_id);
     
   if (e1) {
     console.error('Error fetching extreme participants:', e1);
@@ -197,20 +257,9 @@ async function fetchPlayerExtremeConfig(playerId, battleDate) {
     return null;
   }
   
-  // Get the season's extreme configuration (allowed cards for this season)
-  const { data: config, error: e2 } = await supabase
-    .from('season_extreme_config')
-    .select('extreme_deck_cards')
-    .eq('season_id', participant.season_id)
-    .single();
-    
-  if (e2 || !config) {
-    return null;
-  }
-  
   return {
     isRisky: participant.participant_type === 'RISKY',
-    allowedCardIds: Array.isArray(config.extreme_deck_cards) ? config.extreme_deck_cards : []
+    allowedCardIds: seasonConfigCards
   };
 }
 
@@ -265,7 +314,7 @@ async function fetchPlayerRestrictionsConfig(playerId, seasonId) {
   // Get all card restrictions for this player in this season
   const { data: restrictions, error } = await supabase
     .from('season_card_restriction')
-    .select('card_id')
+    .select('card_id, restriction_variant')
     .eq('player_id', playerId)
     .eq('season_id', seasonId);
     
@@ -279,21 +328,34 @@ async function fetchPlayerRestrictionsConfig(playerId, seasonId) {
   }
   
   return {
-    restrictedCardIds: restrictions.map(r => r.card_id)
+    restrictions: restrictions.map(r => ({
+      card_id: Number(r.card_id),
+      restriction_variant: r.restriction_variant || 'normal',
+    })),
+    restrictedCardIds: restrictions.map(r => Number(r.card_id))
   };
 }
 
 // Validate if a deck uses restricted cards
-function validateRestrictionCompliance(deckCards, restrictedCardIds) {
+function validateRestrictionCompliance(deckCards, restrictions) {
   if (!Array.isArray(deckCards) || deckCards.length === 0) return false;
-  if (!Array.isArray(restrictedCardIds) || restrictedCardIds.length === 0) return true; // No restrictions = valid
+  if (!Array.isArray(restrictions) || restrictions.length === 0) return true; // No restrictions = valid
   
-  // Check if any card in the deck is in the restricted list
-  return !deckCards.some(card => restrictedCardIds.includes(card.id));
+  // Check if any card variant in the deck is in the restricted list
+  return !deckCards.some(card => {
+    const playedVariant = getCardVariantFromEvolutionLevel(card.evolution_level);
+    return restrictions.some(restriction => {
+      if (Number(restriction.card_id) !== Number(card.id)) {
+        return false;
+      }
+
+      return restriction.restriction_variant === 'all' || restriction.restriction_variant === playedVariant;
+    });
+  });
 }
 
 // Validate RES compliance for a war duel
-function validateRestrictionDuel(perRound, restrictedCardIds) {
+function validateRestrictionDuel(perRound, restrictions) {
   // perRound contains the rounds with team/opp arrays with deck_cards
   const totalRounds = perRound.length;
   
@@ -305,7 +367,7 @@ function validateRestrictionDuel(perRound, restrictedCardIds) {
   if (teamDecks.length === 0) return { valid: false, message: 'No decks found' };
   
   // Check if any deck uses restricted cards
-  const violatingDecks = teamDecks.filter(deck => !validateRestrictionCompliance(deck, restrictedCardIds));
+  const violatingDecks = teamDecks.filter(deck => !validateRestrictionCompliance(deck, restrictions));
   const validDecks = teamDecks.length - violatingDecks.length;
   
   const isValid = violatingDecks.length === 0;
@@ -595,6 +657,8 @@ export default function BattlesHistory() {
   const [zones, setZones] = useState([]);
   const [teams, setTeams] = useState([]);
   const [activeSeason, setActiveSeason] = useState(null);
+  const [seasonsCatalog, setSeasonsCatalog] = useState([]);
+  const [seasonExtremeConfigMap, setSeasonExtremeConfigMap] = useState({});
   const [zoneTeamPlayers, setZoneTeamPlayers] = useState([]);
 
   const playerId = searchParams.get("playerId") || "";
@@ -605,6 +669,7 @@ export default function BattlesHistory() {
   const teamId = searchParams.get("teamId") || "";
   const extremeFilter = searchParams.get("extremeFilter") || "all";
   const resFilter = searchParams.get("resFilter") || "all";
+  const seasonFilterId = searchParams.get("seasonId") || "";
 
   const [loading, setLoading] = useState(false);
   const [battleIds, setBattleIds] = useState([]);
@@ -617,8 +682,10 @@ export default function BattlesHistory() {
   const [expanded, setExpanded] = useState(() => new Set());
   const [cardsById, setCardsById] = useState({});
   const [extremeConfigs, setExtremeConfigs] = useState({}); // { battle_id: { config, validation } }
-  const [isExtremeConfigDisabled, setIsExtremeConfigDisabled] = useState(false); // Flag to disable extreme validation
   const [restrictionConfigs, setRestrictionConfigs] = useState({}); // { battle_id: { config, validation } }
+
+  // Track if we've already auto-defaulted season filter on first load
+  const autoDefaultedRef = useRef(false);
 
   useEffect(() => {
     let subscription = null;
@@ -629,34 +696,54 @@ export default function BattlesHistory() {
         setPlayers(ps);
         setModes(ms);
         
-        // Load most recent season (instead of filtering by is_active which may not exist)
+        // Load seasons catalog for validation (latest schema fields)
         const { data: seasons, error: seasonError } = await supabase
           .from('season')
-          .select('season_id, description, is_extreme_config_disabled')
+          .select('season_id, description, is_extreme_config_disabled, duel_start_date, duel_end_date, battle_cutoff_minutes, battle_cutoff_tz_offset, created_at')
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+;
         
-        if (!seasonError && seasons) {
-          setActiveSeason(seasons);
-          
-          // Load extreme config disable flag
-          setIsExtremeConfigDisabled(seasons.is_extreme_config_disabled || false);
+        if (!seasonError && seasons && seasons.length > 0) {
+          setSeasonsCatalog(seasons);
+          const latestSeason = seasons[0];
+          setActiveSeason(latestSeason);
+
+          // Load season extreme config map (only seasons with rows should be validated)
+          const { data: extremeRows, error: extremeErr } = await supabase
+            .from('season_extreme_config')
+            .select('season_id, extreme_deck_cards');
+
+          if (!extremeErr && Array.isArray(extremeRows)) {
+            const nextExtremeMap = {};
+            extremeRows.forEach(row => {
+              nextExtremeMap[row.season_id] = Array.isArray(row.extreme_deck_cards)
+                ? row.extreme_deck_cards
+                : [];
+            });
+            setSeasonExtremeConfigMap(nextExtremeMap);
+          }
           
           // Subscribe to season changes for real-time config updates
           subscription = supabase
-            .channel(`season:${seasons.season_id}`)
+            .channel(`season:${latestSeason.season_id}`)
             .on(
               'postgres_changes',
               {
                 event: 'UPDATE',
                 schema: 'public',
                 table: 'season',
-                filter: `season_id=eq.${seasons.season_id}`,
+                filter: `season_id=eq.${latestSeason.season_id}`,
               },
               (payload) => {
-                if (payload.new && typeof payload.new.is_extreme_config_disabled === 'boolean') {
-                  setIsExtremeConfigDisabled(payload.new.is_extreme_config_disabled);
+                if (payload.new) {
+                  setActiveSeason(prev => prev && prev.season_id === payload.new.season_id
+                    ? { ...prev, ...payload.new }
+                    : prev);
+                  setSeasonsCatalog(prev => prev.map(season =>
+                    season.season_id === payload.new.season_id
+                      ? { ...season, ...payload.new }
+                      : season
+                  ));
                 }
               }
             )
@@ -666,7 +753,7 @@ export default function BattlesHistory() {
           const { data: zonesData, error: zonesError } = await supabase
             .from('season_zone')
             .select('zone_id, name, zone_order')
-            .eq('season_id', seasons.season_id)
+            .eq('season_id', latestSeason.season_id)
             .order('zone_order');
           
           if (!zonesError && zonesData && zonesData.length > 0) {
@@ -746,6 +833,26 @@ export default function BattlesHistory() {
     })();
   }, [zoneId]);
 
+  // Default season filter to current (latest) season
+  useEffect(() => {
+    // Only auto-default on first load when activeSeason becomes available
+    if (autoDefaultedRef.current || !activeSeason?.season_id) {
+      return;
+    }
+
+    // Check if seasonId param already exists (user explicitly set it or we already defaulted)
+    if (searchParams.has("seasonId")) {
+      autoDefaultedRef.current = true;
+      return;
+    }
+
+    // Auto-default to current season on first load
+    autoDefaultedRef.current = true;
+    const next = new URLSearchParams(searchParams);
+    next.set("seasonId", activeSeason.season_id);
+    setSearchParams(next, { replace: true });
+  }, [activeSeason?.season_id, searchParams, setSearchParams]);
+
   // Load players when zone changes - filter by zone team player assignments
   useEffect(() => {
     (async () => {
@@ -820,9 +927,26 @@ export default function BattlesHistory() {
         let ids = playerId 
           ? await fetchBattleIdsByPlayer(playerId, { fromISO: start, toISO: end, mode, zoneId, teamId })
           : await fetchAllBattles({ fromISO: start, toISO: end, mode, zoneId, teamId });
+
+        // Apply season filter if selected
+        if (seasonFilterId && ids.length > 0 && seasonsCatalog.length > 0) {
+          const { data: battleTimes, error } = await supabase
+            .from("battle")
+            .select("battle_id,battle_time")
+            .in("battle_id", ids);
+
+          if (!error && battleTimes) {
+            ids = battleTimes
+              .filter(battle => {
+                const season = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+                return season?.season_id === seasonFilterId;
+              })
+              .map(battle => battle.battle_id);
+          }
+        }
         
         // Apply extreme/risky filter if needed
-        if (extremeFilter !== "all" && ids.length > 0) {
+        if (extremeFilter !== "all" && ids.length > 0 && seasonsCatalog.length > 0) {
           // Get battle times for filtering
           const { data: battleTimes, error } = await supabase
             .from("battle")
@@ -853,12 +977,19 @@ export default function BattlesHistory() {
                 if (e2 || !rp || rp.length === 0) continue;
                 
                 const playerIds = [...new Set(rp.map(r => r.player_id).filter(Boolean))];
+                const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+                if (!battleSeason) continue;
+
+                const seasonExtremeCards = seasonExtremeConfigMap[battleSeason.season_id];
+                if (battleSeason.is_extreme_config_disabled || !Array.isArray(seasonExtremeCards) || seasonExtremeCards.length === 0) {
+                  continue;
+                }
                 
                 // Check if any player in this battle matches the filter
                 let matchesFilter = false;
                 
                 for (const pid of playerIds) {
-                  const config = await fetchPlayerExtremeConfig(pid, battle.battle_time);
+                  const config = await fetchPlayerExtremeConfig(pid, battle.battle_time, battleSeason, seasonExtremeConfigMap);
                   if (config) {
                     if (extremeFilter === "any") {
                       matchesFilter = true;
@@ -884,7 +1015,7 @@ export default function BattlesHistory() {
         }
         
         // Apply RES (card restriction) filter if needed
-        if (resFilter === "withRes" && ids.length > 0 && activeSeason) {
+        if (resFilter === "withRes" && ids.length > 0 && seasonsCatalog.length > 0) {
           // Get battle times for filtering
           const { data: battleTimes, error } = await supabase
             .from("battle")
@@ -918,9 +1049,11 @@ export default function BattlesHistory() {
                 
                 // Check if any player in this battle has restrictions
                 let matchesFilter = false;
+                const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+                if (!battleSeason) continue;
                 
                 for (const pid of playerIds) {
-                  const config = await fetchPlayerRestrictionsConfig(pid, activeSeason.season_id);
+                  const config = await fetchPlayerRestrictionsConfig(pid, battleSeason.season_id);
                   if (config && config.restrictedCardIds && config.restrictedCardIds.length > 0) {
                     matchesFilter = true;
                     break;
@@ -945,7 +1078,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter, resFilter]);
+  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter, resFilter, seasonFilterId, seasonsCatalog, seasonExtremeConfigMap]);
 
   // carga de detalles por página
   useEffect(() => {
@@ -969,19 +1102,26 @@ export default function BattlesHistory() {
         
         // Load extreme/risky configurations for war duels
         const configs = {};
-        // Skip loading configs if extreme configuration is disabled for the season
-        if (res.battles.length > 0 && !isExtremeConfigDisabled) {
+        if (res.battles.length > 0 && seasonsCatalog.length > 0) {
           for (const battle of res.battles) {
             // Only check for war duels (round_count > 1)
             // River Race duels can be: riverRaceDuel, riverRaceDuelColosseum, riverRacePvP
             if (battle.round_count > 1 && (battle.api_battle_type === 'war' || battle.api_battle_type?.startsWith('riverRace'))) {
+              const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+              if (!battleSeason) continue;
+
+              const seasonExtremeCards = seasonExtremeConfigMap[battleSeason.season_id];
+              if (battleSeason.is_extreme_config_disabled || !Array.isArray(seasonExtremeCards) || seasonExtremeCards.length === 0) {
+                continue;
+              }
+
               // Get rounds for this battle
               const battleRounds = res.rounds.filter(r => r.battle_id === battle.battle_id);
               const summary = computeBattleSummary({ battle, rounds: battleRounds, playersById: res.playersById });
               
               // Si hay un playerId específico, validamos solo para ese jugador
               if (playerId) {
-                const config = await fetchPlayerExtremeConfig(playerId, battle.battle_time);
+                const config = await fetchPlayerExtremeConfig(playerId, battle.battle_time, battleSeason, seasonExtremeConfigMap);
                 if (config) {
                   const validation = validateExtremeDuel(summary.perRound, config.isRisky, config.allowedCardIds);
                   configs[battle.battle_id] = {
@@ -996,7 +1136,7 @@ export default function BattlesHistory() {
                 const validations = {};
                 
                 for (const pid of playerIdsInBattle) {
-                  const config = await fetchPlayerExtremeConfig(pid, battle.battle_time);
+                  const config = await fetchPlayerExtremeConfig(pid, battle.battle_time, battleSeason, seasonExtremeConfigMap);
                   if (config) {
                     // Filter summary.perRound to only include rounds where this player participated
                     // We need to filter by checking if the player is in the team array of each round
@@ -1028,19 +1168,22 @@ export default function BattlesHistory() {
         
         // Load RES (card restriction) configurations for war duels
         const resConfigs = {};
-        if (res.battles.length > 0 && activeSeason) {
+        if (res.battles.length > 0 && seasonsCatalog.length > 0) {
           for (const battle of res.battles) {
             // Only check for war duels (round_count > 1)
             if (battle.round_count > 1 && (battle.api_battle_type === 'war' || battle.api_battle_type?.startsWith('riverRace'))) {
+              const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+              if (!battleSeason) continue;
+
               // Get rounds for this battle
               const battleRounds = res.rounds.filter(r => r.battle_id === battle.battle_id);
               const summary = computeBattleSummary({ battle, rounds: battleRounds, playersById: res.playersById });
               
               // Si hay un playerId específico, validamos solo para ese jugador
               if (playerId) {
-                const config = await fetchPlayerRestrictionsConfig(playerId, activeSeason.season_id);
+                const config = await fetchPlayerRestrictionsConfig(playerId, battleSeason.season_id);
                 if (config) {
-                  const validation = validateRestrictionDuel(summary.perRound, config.restrictedCardIds);
+                  const validation = validateRestrictionDuel(summary.perRound, config.restrictions);
                   resConfigs[battle.battle_id] = {
                     config,
                     validation,
@@ -1053,7 +1196,7 @@ export default function BattlesHistory() {
                 const validations = {};
                 
                 for (const pid of playerIdsInBattle) {
-                  const config = await fetchPlayerRestrictionsConfig(pid, activeSeason.season_id);
+                  const config = await fetchPlayerRestrictionsConfig(pid, battleSeason.season_id);
                   if (config) {
                     // Filter summary.perRound to only include rounds where this player participated
                     const playerPerRound = summary.perRound.map(round => ({
@@ -1062,7 +1205,7 @@ export default function BattlesHistory() {
                       opp: round.opp // keep opponent data unchanged
                     })).filter(round => round.team.length > 0); // only keep rounds where player participated
                     
-                    const validation = validateRestrictionDuel(playerPerRound, config.restrictedCardIds);
+                    const validation = validateRestrictionDuel(playerPerRound, config.restrictions);
                     validations[pid] = {
                       config,
                       validation
@@ -1090,7 +1233,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [battleIds, page, playerId, isExtremeConfigDisabled, activeSeason]);
+  }, [battleIds, page, playerId, seasonsCatalog, seasonExtremeConfigMap]);
 
   // Auto-expand battle if battleId parameter is present in URL
   useEffect(() => {
@@ -1173,6 +1316,22 @@ export default function BattlesHistory() {
         {/* Filters */}
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-white/70">Temporada</label>
+              <select
+                className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                value={seasonFilterId}
+                onChange={(e) => onFilter("seasonId", e.target.value)}
+              >
+                <option value="">Todas</option>
+                {seasonsCatalog.map((season) => (
+                  <option key={season.season_id} value={season.season_id}>
+                    {season.description || season.season_id}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium text-white/70">
                 Jugador{zoneId && zoneTeamPlayers.length > 0 ? ` (${filteredPlayers.length} en zona)` : ''}

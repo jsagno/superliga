@@ -53,7 +53,7 @@ def load_config() -> Config:
         clan_tag=os.environ.get("CLAN_TAG", "#PUGCG80C"),
         cache_dir=os.environ.get("CACHE_DIR", "./cache"),
         cache_ttl_clan_min=int(os.environ.get("CACHE_TTL_CLAN_MIN", "30")),
-        cache_ttl_battlelog_min=int(os.environ.get("CACHE_TTL_BATTLELOG_MIN", "60")),
+        cache_ttl_battlelog_min=int(os.environ.get("CACHE_TTL_BATTLELOG_MIN", "0")),
         repair_max_attempts=int(os.environ.get("REPAIR_MAX_ATTEMPTS", "5")),
         repair_batch_size=int(os.environ.get("REPAIR_BATCH_SIZE", "25")),
         log_file=os.environ.get("LOG_FILE", "./logs/cron.log"),
@@ -1023,11 +1023,12 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
             try:
                 if verbose:
                     logging.info(f"📢 [Step 1] Fetching player info for player_id={player_id}")
-                # Get player nick and zone
-                player_res = sb.table("player").select("nick").eq("player_id", player_id).execute()
+                # Get player nick and discord_user_id
+                player_res = sb.table("player").select("nick,discord_user_id").eq("player_id", player_id).execute()
                 player_nick = player_res.data[0]["nick"] if player_res.data else f"Player_{player_id[:8]}"
+                player_discord_id = player_res.data[0].get("discord_user_id") if player_res.data else None
                 if verbose:
-                    logging.info(f"📢 [Step 1] Got player nick: {player_nick}")                
+                    logging.info(f"📢 [Step 1] Got player nick: {player_nick}, discord_id: {player_discord_id}")                
                     logging.info(f"📢 [Step 2] Getting player zone for season_id={season_id}, player_id={player_id}")                    
                 player_zone_id = get_player_zone(sb, player_id, season_id)
                 if verbose:
@@ -1036,8 +1037,29 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
                 # Opponent data from battle_round_player.opponent payload
                 opponent_nick = opponent_nick_from_payload
                 opponent_zone_id = None
+                opponent_discord_id = None
                 if verbose:
                     logging.info(f"📢 [Step 3] Opponent nick from payload: {opponent_nick}, opponent_tag: {opponent_tag_from_payload}")
+
+                # If opponent is registered, try to fetch their discord ID
+                if opponent_tag_from_payload:
+                    try:
+                        opp_res = sb.table("player_identity") \
+                            .select("player_id") \
+                            .eq("player_tag", opponent_tag_from_payload) \
+                            .is_("valid_to", "null") \
+                            .limit(1) \
+                            .execute()
+                        if opp_res.data:
+                            opp_player_id = opp_res.data[0].get("player_id")
+                            if opp_player_id:
+                                opp_player_res = sb.table("player").select("discord_user_id").eq("player_id", opp_player_id).execute()
+                                opponent_discord_id = opp_player_res.data[0].get("discord_user_id") if opp_player_res.data else None
+                                if verbose:
+                                    logging.info(f"📢 [Step 3] Opponent discord_id: {opponent_discord_id}")
+                    except Exception as e:
+                        if verbose:
+                            logging.warning(f"📢 [Step 3] Could not fetch opponent discord ID: {e}")
 
                 # If player has no zone configured for season, skip notification
                 if not player_zone_id:
@@ -1053,8 +1075,10 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
                     score_str = f"{result['final_score_a']}-{result['final_score_b']}"
                     winner_nick = player_nick
                     winner_zone_id = player_zone_id
+                    winner_discord_id = player_discord_id
                     loser_nick = opponent_nick
                     loser_zone_id = opponent_zone_id
+                    loser_discord_id = opponent_discord_id
                     if verbose:
                         logging.info(f"📢 [Step 4] Player won: {winner_nick} (zone={winner_zone_id}) beat {loser_nick} (zone={loser_zone_id})")
                 else:
@@ -1062,8 +1086,10 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
                     score_str = f"{result['final_score_b']}-{result['final_score_a']}"
                     winner_nick = opponent_nick
                     winner_zone_id = opponent_zone_id
+                    winner_discord_id = opponent_discord_id
                     loser_nick = player_nick
                     loser_zone_id = player_zone_id
+                    loser_discord_id = player_discord_id
                     if verbose:
                         logging.info(f"📢 [Step 4] Opponent won: {winner_nick} beat {loser_nick}")
 
@@ -1086,7 +1112,9 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
                     score=score_str,
                     winner_zone_id=winner_zone_id,
                     loser_zone_id=loser_zone_id,
-                    supabase_client=sb
+                    supabase_client=sb,
+                    winner_discord_id=winner_discord_id,
+                    loser_discord_id=loser_discord_id
                 )                
                 logging.info(f"📢 [Step 5] SUCCESS: notify_duel_result completed for battle {battle_id}")
             except Exception as e:

@@ -43,13 +43,13 @@ WIN_MESSAGES = [
     "{player} > {opponent} = ¡VICTORIA! {score} ✅💪",
     
     # Adicionales (18 más para llegar a 50+)
-    "⚡ ¡RAYOS Y TRUENOS! ¡{player} {{score}} {opponent} ES PURA DINAMITA! 💀",
+    "⚡ ¡RAYOS Y TRUENOS! ¡{player} {score} {opponent} ES PURA DINAMITA! 💀",
     "🎭 ¡Y LA AUDIENCIA ENTRA EN FRENESÍ! ¡{player} ACABA DE DOMINAR! {score} 🎪",
-    "👽 ¡{player}} DESCENDIÓ DEL COSMOS Y DESTRUYÓ A {opponent}! {score} 🌌",
+    "👽 ¡{player} DESCENDIÓ DEL COSMOS Y DESTRUYÓ A {opponent}! {score} 🌌",
     "🏃 ¡VELOCIDAD FLASH! ¡{player} DESAPARECIÓ DEL MAPA ANTES QUE {opponent} PARPADEARA! {score}",
     "💍 ¡{player} TIENE EL ANILLO! ¡{opponent} NO TIENE PODER PARA {score}! 👑",
     "🎓 ¡DOCTORADO EN DOMINAR! ¡{player} LE ENSEÑÓ A {opponent} QUIÉN ES EL MAESTRO! {score}",
-    "🌊 ¡TSUNAMI DE SKILLS! ¡{player} ARRASÓ COMO OLA GIGANTE! {score} {{opponent} 🏄",
+    "🌊 ¡TSUNAMI DE SKILLS! ¡{player} ARRASÓ COMO OLA GIGANTE! {score} {opponent} 🏄",
     "⭐ ¡{player} BRILLA COMO SUPERNOVA! ¡{opponent} NO PUEDE COMPETIR! {score} 🌠",
     "🎯 ¡BULLSEYE! ¡{player} ACERTÓ CADA GOLPE CONTRA {opponent}! {score} 🏹",
     "🔓 ¡{player} ABRIÓ LA CAJA DE LA VERDAD! ¡{opponent} VIO LA LUZ CON {score}! 💡",

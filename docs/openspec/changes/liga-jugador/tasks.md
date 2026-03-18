@@ -115,93 +115,92 @@
 **Referencia Stitch:** `133ac58ba0a3448ea275c9387fd41cb2`  
 **Archivo:** `src/components/VincularBatallaPanel.jsx`
 
-- [x] 8.1 Implementar `src/services/battlesService.js`:
+- [ ] 8.1 Implementar `src/services/battlesService.js`:
   - `fetchUnlinkedBattles(matchContext, limit)` → últimas N batallas no vinculadas compatibles con ese `scheduled_match`
   - `linkBattlesToScheduledMatch(scheduledMatchId, battleIds[], appUserId)` → inserta en `scheduled_match_battle_link` y actualiza estado a `LINKED`
-- [x] 8.2 Implementar panel/sheet deslizable desde abajo (bottom sheet):
+- [ ] 8.2 Implementar panel/sheet deslizable desde abajo (bottom sheet):
   - Header: "Vinculando a: [nombre del rival]" + botón ✕ cerrar
   - Subtítulo: "Mostrando últimas N batallas no vinculadas"
-- [x] 8.3 Cada entrada de batalla en el panel muestra:
+- [ ] 8.3 Cada entrada de batalla en el panel muestra:
   - Checkbox de selección
   - Resultado (Victoria ✓ / Derrota ✗) con color (verde/rojo)
   - Score de coronas (ej. "3 - 1")
   - Tiempo relativo ("Hace 23 min", "Hace 1 hora")
   - **Icono Ojo** (👁 `<Eye />`) que abre `BattleDetailModal` con el detalle de esa batalla
-- [x] 8.4 Footer pegajoso: "Seleccionadas: X de Y" + botón "Vincular Batallas" (deshabilitado si 0 seleccionadas)
-- [x] 8.5 Al confirmar: llamar a `linkBattlesToScheduledMatch()`, cerrar panel, actualizar la lista de pendientes
-- [x] 8.6 Feedback de éxito ("✓ Batalla vinculada") y manejo de error
-- [x] 8.7 Test: abrir panel, seleccionar batallas, vincular, verificar que desaparece del pendiente
+- [ ] 8.4 Footer pegajoso: "Seleccionadas: X de Y" + botón "Vincular Batallas" (deshabilitado si 0 seleccionadas)
+- [ ] 8.5 Al confirmar: llamar a `linkBattlesToScheduledMatch()`, cerrar panel, actualizar la lista de pendientes
+- [ ] 8.6 Feedback de éxito ("✓ Batalla vinculada") y manejo de error
+- [ ] 8.7 Test: abrir panel, seleccionar batallas, vincular, verificar que desaparece del pendiente
 
 ## 9. Pantalla 7: Histórico de Batallas Propias
 
 **Referencia Stitch:** `dfd831b5ce054c28957e9ce253aced7d`  
 **Archivo:** `src/pages/HistorialBatallas.jsx`
 
-- [x] 9.1 Añadir a `battlesService.js`:
+- [ ] 9.1 Añadir a `battlesService.js`:
   - `fetchPlayerBattleHistory(playerId, filters)` → historial paginado con filtros
   - `fetchPlayerGlobalStats(playerId, seasonId)` → totales: victorias, ratio, etc.
-- [x] 9.2 Implementar header "Histórico" con botón back (← vuelve al dashboard)
-- [x] 9.3 Implementar selector de temporada (dropdown expandible)
-- [x] 9.4 Implementar tabs de tipo de batalla: "Todos" | "Duelo de Guerra" | "Copa de Liga" | "Copa Revenge"
-- [x] 9.5 Implementar badges de estadísticas globales: "Total: N victorias", "N batallas", "Win Rate X%"
-- [x] 9.6 Implementar sección "Batallas Recientes" con lista de `BattleCard`:
+- [ ] 9.2 Implementar header "Histórico" con botón back (← vuelve al dashboard)
+- [ ] 9.3 Implementar selector de temporada (dropdown expandible)
+- [ ] 9.4 Implementar tabs de tipo de batalla: "Todos" | "Duelo de Guerra" | "Copa de Liga" | "Copa Revenge"
+- [ ] 9.5 Implementar badges de estadísticas globales: "Total: N victorias", "N batallas", "Win Rate X%"
+- [ ] 9.6 Implementar sección "Batallas Recientes" con lista de `BattleCard`:
   - Ícono de tipo (⚔ duelo / 🏆 copa)
   - "vs. [nombre del rival]"
   - Score (ej. "2 - 0"), tipo, tiempo relativo
   - **Icono Ojo** (👁 `<Eye />`) que abre `BattleDetailModal`
   - Flecha chevron derecha (expansión opcional en fase 2)
-- [x] 9.7 Implementar carga progresiva: "Cargando más batallas…" spinner al hacer scroll al final
-- [x] 9.8 Implementar `src/components/BattleCard.jsx` reutilizable
-- [x] 9.9 Test: historial carga, filtros funcionan, icono ojo abre el detalle correcto
+- [ ] 9.7 Implementar carga progresiva: "Cargando más batallas…" spinner al hacer scroll al final
+- [ ] 9.8 Implementar `src/components/BattleCard.jsx` reutilizable
+- [ ] 9.9 Test: historial carga, filtros funcionan, icono ojo abre el detalle correcto
 
 ## 10. Componente BattleDetailModal (Icono Ojo)
 
 **Archivo:** `src/components/BattleDetailModal.jsx`
 
-- [x] 10.1 Adaptar `BattleDetailModal.jsx` de `liga-admin` para uso en `liga-jugador`
+- [ ] 10.1 Adaptar `BattleDetailModal.jsx` de `liga-admin` para uso en `liga-jugador`
   - Copiar lógica de fetching de `battle_round` y `battle_round_player`
   - Adaptar estilos a la paleta oscura del portal del jugador
-- [x] 10.2 Asegurar que el modal muestra:
+- [ ] 10.2 Asegurar que el modal muestra:
   - Título: tipo de batalla + fecha
   - Resultado: Victoria/Derrota, score total de coronas
   - Lista de rondas con: round número, resultado, coronas, mazos (imágenes de cartas si disponibles)
   - Nombre e identificador del rival
-- [x] 10.3 Cerrar modal con ✕ o click fuera del área
-- [x] 10.4 Accesibilidad: trap focus dentro del modal cuando está abierto, `aria-modal="true"`
-- [x] 10.5 Test: abre desde historial, muestra datos correctos de la batalla seleccionada
-- [x] 10.6 Test: abre desde panel de vinculación, muestra datos correctos
+- [ ] 10.3 Cerrar modal con ✕ o click fuera del área
+- [ ] 10.4 Accesibilidad: trap focus dentro del modal cuando está abierto, `aria-modal="true"`
+- [ ] 10.5 Test: abre desde historial, muestra datos correctos de la batalla seleccionada
+- [ ] 10.6 Test: abre desde panel de vinculación, muestra datos correctos
 
 ## 11. Row Level Security (RLS) en Supabase
 
-- [x] 11.1 Definir política RLS en `app_user` y `app_user_player`: el usuario autenticado solo puede leer su propio vínculo
-- [x] 11.2 Definir política RLS en `scheduled_match`: el jugador puede leer matches donde participa (`player_a_id`/`player_b_id`) y actualizar solo transiciones permitidas hacia `LINKED`
-- [x] 11.3 Definir política RLS en `battle`, `battle_round` y `battle_round_player`: acceso de lectura cuando el jugador participa o es el owner lógico del vínculo
-- [x] 11.4 Definir política RLS en `player`: el usuario puede leer su propio registro a través de `app_user_player`
-- [x] 11.5 Verificar que desde el portal **no es posible** leer datos de otros jugadores no relacionados
-- [x] 11.6 Documentar las políticas RLS en `shared/database/README.md`
+- [ ] 11.1 Definir política RLS en `app_user` y `app_user_player`: el usuario autenticado solo puede leer su propio vínculo
+- [ ] 11.2 Definir política RLS en `scheduled_match`: el jugador puede leer matches donde participa (`player_a_id`/`player_b_id`) y actualizar solo transiciones permitidas hacia `LINKED`
+- [ ] 11.3 Definir política RLS en `battle`, `battle_round` y `battle_round_player`: acceso de lectura cuando el jugador participa o es el owner lógico del vínculo
+- [ ] 11.4 Definir política RLS en `player`: el usuario puede leer su propio registro a través de `app_user_player`
+- [ ] 11.5 Verificar que desde el portal **no es posible** leer datos de otros jugadores no relacionados
+- [ ] 11.6 Documentar las políticas RLS en `shared/database/README.md`
 
 ## 12. Integración y Pruebas Finales
 
-- [x] 12.1 Flujo completo: login → dashboard → ver standings → ver batallas pendientes → vincular batalla
-- [x] 12.2 Flujo completo: login → historial → click ojo en batalla → ver detalle de rondas y mazos
-- [x] 12.3 Test con email no autorizado → recibe mensaje de acceso restringido, no puede entrar
-- [x] 12.4 Test con sesión expirada → redirige automáticamente a login
-- [x] 12.5 Verificar responsividad mobile (375px, 390px, 414px de ancho)
-- [x] 12.6 Verificar que el bottom nav no oculta contenido interactivo en ninguna pantalla
-- [x] 12.7 Verificar que dados los permisos RLS un jugador NO puede ver datos de otro jugador
-- [x] 12.8 Test de rendimiento: primer load completo del dashboard < 3 segundos en red 4G simulada
+- [ ] 12.1 Flujo completo: login → dashboard → ver standings → ver batallas pendientes → vincular batalla
+- [ ] 12.2 Flujo completo: login → historial → click ojo en batalla → ver detalle de rondas y mazos
+- [ ] 12.3 Test con email no autorizado → recibe mensaje de acceso restringido, no puede entrar
+- [ ] 12.4 Test con sesión expirada → redirige automáticamente a login
+- [ ] 12.5 Verificar responsividad mobile (375px, 390px, 414px de ancho)
+- [ ] 12.6 Verificar que el bottom nav no oculta contenido interactivo en ninguna pantalla
+- [ ] 12.7 Verificar que dados los permisos RLS un jugador NO puede ver datos de otro jugador
+- [ ] 12.8 Test de rendimiento: primer load completo del dashboard < 3 segundos en red 4G simulada
 
 ## 13. Configuración de Despliegue
 
-- [x] 13.1 Configurar `vite.config.js` con `base: '/'` y `build.outDir: 'dist'`
-- [x] 13.2 Añadir `packages/liga-jugador/DEPLOYMENT_CHECKLIST.md`
-- [x] 13.3 Actualizar `README.md` raíz con instrucciones para levantar `liga-jugador`
-- [x] 13.4 Verificar que variables de entorno para producción están documentadas
+- [ ] 13.1 Configurar `vite.config.js` con `base: '/'` y `build.outDir: 'dist'`
+- [ ] 13.2 Añadir `packages/liga-jugador/DEPLOYMENT_CHECKLIST.md`
+- [ ] 13.3 Actualizar `README.md` raíz con instrucciones para levantar `liga-jugador`
+- [ ] 13.4 Verificar que variables de entorno para producción están documentadas
 
 ## 14. Documentación
 
-- [x] 14.1 Crear `packages/liga-jugador/README.md` con descripción, setup, y comandos
-- [x] 14.2 Actualizar `docs/openspec/products/liga-jugador.md` con la especificación completa del producto
-- [x] 14.3 Actualizar `docs/openspec/changelog.md` con el cambio `liga-jugador`
-- [x] 14.4 Añadir entrada en `docs/openspec/README.md` referenciando el nuevo producto
-
+- [ ] 14.1 Crear `packages/liga-jugador/README.md` con descripción, setup, y comandos
+- [ ] 14.2 Actualizar `docs/openspec/products/liga-jugador.md` con la especificación completa del producto
+- [ ] 14.3 Actualizar `docs/openspec/changelog.md` con el cambio `liga-jugador`
+- [ ] 14.4 Añadir entrada en `docs/openspec/README.md` referenciando el nuevo producto

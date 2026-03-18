@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import CardGrid from '../../components/CardGrid';
 import PlayerMultiSelect from '../../components/PlayerMultiSelect';
 import { restrictionsService } from '../../services/restrictionsService';
+import { getBaseCardId, getCardVariantFromSelectionId, getCardVariantLabel } from '../../utils/cardParser';
 
 const REASON_OPTIONS = [
   'Tournament Rule',
@@ -13,6 +14,25 @@ const REASON_OPTIONS = [
 ];
 
 const BATCH_SIZE = 50;
+
+function normalizeSelectedRestriction(card) {
+  return {
+    card_id: getBaseCardId(card.card_id),
+    restriction_variant: getCardVariantFromSelectionId(card.card_id),
+  };
+}
+
+function buildRestrictionKey(playerId, cardId, restrictionVariant) {
+  return `${playerId}:${Number(cardId)}:${restrictionVariant || 'normal'}`;
+}
+
+function isExistingRestriction(duplicateKeySet, playerId, card) {
+  const selection = normalizeSelectedRestriction(card);
+  return (
+    duplicateKeySet.has(buildRestrictionKey(playerId, selection.card_id, selection.restriction_variant)) ||
+    duplicateKeySet.has(buildRestrictionKey(playerId, selection.card_id, 'all'))
+  );
+}
 
 export default function SeasonRestrictionEdit() {
   const navigate = useNavigate();
@@ -48,15 +68,10 @@ export default function SeasonRestrictionEdit() {
     [selectedPlayers]
   );
 
-  const selectedCardIds = useMemo(
-    () => selectedCards.map(card => {
-      // Normalize card_id: remove '_evo' suffix if present
-      let normalized = card.card_id;
-      if (typeof card.card_id === 'string' && card.card_id.endsWith('_evo')) {
-        normalized = card.card_id.replace('_evo', '');
-      }
-      return Number(normalized);
-    }).filter(cardId => !Number.isNaN(cardId)),
+  const selectedCardSelections = useMemo(
+    () => selectedCards
+      .map(card => normalizeSelectedRestriction(card))
+      .filter(card => !Number.isNaN(card.card_id)),
     [selectedCards]
   );
 
@@ -64,7 +79,7 @@ export default function SeasonRestrictionEdit() {
     let cancelled = false;
 
     const runDuplicateCheck = async () => {
-      if (!seasonId || selectedPlayerIds.length === 0 || selectedCardIds.length === 0) {
+      if (!seasonId || selectedPlayerIds.length === 0 || selectedCardSelections.length === 0) {
         setExistingRestrictions([]);
         return;
       }
@@ -74,7 +89,7 @@ export default function SeasonRestrictionEdit() {
         const existing = await restrictionsService.checkExistingRestrictions(
           seasonId,
           selectedPlayerIds,
-          selectedCardIds
+          selectedCardSelections
         );
         if (!cancelled) {
           setExistingRestrictions(existing || []);
@@ -96,12 +111,12 @@ export default function SeasonRestrictionEdit() {
     return () => {
       cancelled = true;
     };
-  }, [seasonId, selectedPlayerIds, selectedCardIds, showToast]);
+  }, [seasonId, selectedPlayerIds, selectedCardSelections, showToast]);
 
   const duplicateKeySet = useMemo(() => {
     const keys = new Set();
     (existingRestrictions || []).forEach(row => {
-      keys.add(`${row.player_id}:${Number(row.card_id)}`);
+      keys.add(buildRestrictionKey(row.player_id, row.card_id, row.restriction_variant || 'normal'));
     });
     return keys;
   }, [existingRestrictions]);
@@ -111,7 +126,7 @@ export default function SeasonRestrictionEdit() {
     let count = 0;
     selectedPlayers.forEach(player => {
       selectedCards.forEach(card => {
-        if (duplicateKeySet.has(`${player.player_id}:${Number(card.card_id)}`)) {
+        if (isExistingRestriction(duplicateKeySet, player.player_id, card)) {
           count++;
         }
       });
@@ -131,17 +146,13 @@ export default function SeasonRestrictionEdit() {
       selectedPlayers.map(player => ({
         ...player,
         cells: selectedCards.map(card => {
-          // Normalize card_id for duplicate checking
-          let normalizedCardId = card.card_id;
-          if (typeof card.card_id === 'string' && card.card_id.endsWith('_evo')) {
-            normalizedCardId = card.card_id.replace('_evo', '');
-          }
-          const key = `${player.player_id}:${Number(normalizedCardId)}`;
+          const normalizedCard = normalizeSelectedRestriction(card);
           return {
             card_id: card.card_id,
             card_name: card.name || card.displayName,
             card_icon: card.parsed?.icon || card.displayIcon || null,
-            isDuplicate: duplicateKeySet.has(key),
+            isDuplicate: isExistingRestriction(duplicateKeySet, player.player_id, card),
+            restriction_variant: normalizedCard.restriction_variant,
           };
         }),
       })),
@@ -167,10 +178,11 @@ export default function SeasonRestrictionEdit() {
 
   const handleCardToggle = useCallback(card => {
     setSelectedCards(prev => {
-      const exists = prev.some(item => item.card_id === card.card_id);
+      const exists = prev.some(item => String(item.card_id) === String(card.card_id));
       if (exists) {
-        return prev.filter(item => item.card_id !== card.card_id);
+        return prev.filter(item => String(item.card_id) !== String(card.card_id));
       }
+
       return [...prev, card];
     });
   }, []);
@@ -179,18 +191,13 @@ export default function SeasonRestrictionEdit() {
     const rows = [];
     selectedPlayers.forEach(player => {
       selectedCards.forEach(card => {
-        // Normalize card_id: remove '_evo' suffix if present
-        let normalizedCardId = card.card_id;
-        if (typeof card.card_id === 'string' && card.card_id.endsWith('_evo')) {
-          normalizedCardId = card.card_id.replace('_evo', '');
-        }
-        const numericCardId = Number(normalizedCardId);
+        const normalizedCard = normalizeSelectedRestriction(card);
 
-        const key = `${player.player_id}:${numericCardId}`;
-        if (!duplicateKeySet.has(key)) {
+        if (!isExistingRestriction(duplicateKeySet, player.player_id, card)) {
           rows.push({
             player_id: player.player_id,
-            card_id: numericCardId,
+            card_id: normalizedCard.card_id,
+            restriction_variant: normalizedCard.restriction_variant,
             reason: resolvedReason,
             created_by: null,
           });
@@ -392,6 +399,7 @@ export default function SeasonRestrictionEdit() {
                           <span className="text-sm">🃏</span>
                         )}
                         <span className="truncate max-w-[90px] text-xs">{card.displayName || card.name}</span>
+                        <span className="text-[10px] uppercase text-slate-500">{getCardVariantLabel(getCardVariantFromSelectionId(card.card_id))}</span>
                       </div>
                     </th>
                   ))}

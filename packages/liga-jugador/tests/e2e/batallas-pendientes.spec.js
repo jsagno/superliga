@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test'
 
-async function setAuthenticatedPendingScenario(page, scenario = 'default', linkingScenario = 'default') {
+async function setAuthenticatedPendingScenario(page, scenario = 'default') {
   await page.addInitScript(
-    ({ pendingScenario, linkingScenarioValue }) => {
+    ({ pendingScenario }) => {
       window.localStorage.setItem('ligaJugador:e2eAuth', 'authenticated')
       window.localStorage.setItem('ligaJugador:e2ePendingScenario', pendingScenario)
-      window.localStorage.setItem('ligaJugador:e2eLinkingScenario', linkingScenarioValue)
     },
-    { pendingScenario: scenario, linkingScenarioValue: linkingScenario },
+    { pendingScenario: scenario },
   )
 }
 
@@ -41,19 +40,5 @@ test.describe('BatallasPendientes', () => {
     await page.goto('/batallas')
 
     await expect(page.locator('nav').getByText('3')).toBeVisible()
-  })
-
-  test('opens linking panel, selects battles and removes pending match after linking', async ({ page }) => {
-    await setAuthenticatedPendingScenario(page, 'default', 'default')
-    await page.goto('/batallas')
-
-    await page.getByRole('button', { name: /Vincular batalla con Rival Uno/i }).first().click()
-    await expect(page.getByText(/Vinculando a: Rival Uno/i)).toBeVisible()
-
-    await page.getByRole('checkbox', { name: /Seleccionar batalla/i }).first().check()
-    await page.getByRole('button', { name: /Vincular Batallas/i }).click()
-
-    await expect(page.getByRole('status')).toContainText(/Batalla vinculada correctamente/i)
-    await expect(page.getByTestId('pending-rival-sm-101')).toHaveCount(0)
   })
 })

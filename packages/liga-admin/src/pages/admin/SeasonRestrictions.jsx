@@ -237,6 +237,7 @@ export default function SeasonRestrictions() {
           season_id: seasonId,
           player_id: undoItem.data.player_id,
           card_id: undoItem.data.card_id,
+          restriction_variant: undoItem.data.restriction_variant,
           reason: undoItem.data.reason,
           created_by: undoItem.data.created_by,
         });
@@ -246,6 +247,7 @@ export default function SeasonRestrictions() {
           season_id: seasonId,
           player_id: r.player_id,
           card_id: r.card_id,
+          restriction_variant: r.restriction_variant,
           reason: r.reason,
           created_by: r.created_by,
         }));

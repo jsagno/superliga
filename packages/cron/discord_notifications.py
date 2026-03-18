@@ -10,8 +10,9 @@ Handles all Discord integration:
 
 import time
 import logging
+import re
 import requests
-from typing import Optional
+from typing import Optional, List
 from discord_messages import get_random_win_message, get_random_loss_message, format_message
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,23 @@ logger = logging.getLogger(__name__)
 WEBHOOK_CACHE = {}
 WEBHOOK_CACHE_TIMESTAMP = 0
 WEBHOOK_CACHE_TTL = 300  # Refresh cache every 5 minutes
+
+
+def normalize_discord_user_id(discord_user_id: Optional[str]) -> Optional[str]:
+    """Return a clean numeric Discord user ID or None if invalid."""
+    if not discord_user_id:
+        return None
+
+    value = str(discord_user_id).strip()
+    # Accept raw IDs and mention-like values such as <@123...> or <@!123...>
+    match = re.search(r"(\d{17,20})", value)
+    return match.group(1) if match else None
+
+
+def to_discord_mention(discord_user_id: Optional[str], fallback_nick: str) -> str:
+    """Build a Discord mention when ID is valid; otherwise fallback to nick."""
+    clean_id = normalize_discord_user_id(discord_user_id)
+    return f"<@{clean_id}>" if clean_id else f"**{fallback_nick}**"
 
 
 def refresh_webhook_cache(supabase_client):
@@ -87,7 +105,7 @@ def get_webhook_url(zone_id: str, supabase_client) -> Optional[str]:
     return webhook_url
 
 
-def build_discord_embed(winner_nick: str, loser_nick: str, score: str, result_type: str):
+def build_discord_embed(winner_nick: str, loser_nick: str, score: str, result_type: str, winner_discord_id: Optional[str] = None, loser_discord_id: Optional[str] = None):
     """
     Build Discord embed message for duel result.
     
@@ -96,10 +114,16 @@ def build_discord_embed(winner_nick: str, loser_nick: str, score: str, result_ty
         loser_nick: Loser's player nick
         score: Final score (e.g., "2-0")
         result_type: "WIN" or "LOSS"
+        winner_discord_id: Winner's Discord user ID (for tagging)
+        loser_discord_id: Loser's Discord user ID (for tagging)
         
     Returns:
         Dict with Discord embed data
     """
+    # Format names with Discord mentions if IDs are available
+    winner_display = to_discord_mention(winner_discord_id, winner_nick)
+    loser_display = to_discord_mention(loser_discord_id, loser_nick)
+    
     # Get random message
     if result_type == "WIN":
         message_template = get_random_win_message()
@@ -121,12 +145,12 @@ def build_discord_embed(winner_nick: str, loser_nick: str, score: str, result_ty
         "fields": [
             {
                 "name": "🏆 Ganador",
-                "value": f"**{winner_nick}**",
+                "value": winner_display,
                 "inline": True
             },
             {
                 "name": "😤 Perdedor",
-                "value": f"**{loser_nick}**",
+                "value": loser_display,
                 "inline": True
             },
             {
@@ -145,7 +169,13 @@ def build_discord_embed(winner_nick: str, loser_nick: str, score: str, result_ty
     return embed
 
 
-def post_to_discord_with_retry(webhook_url: str, embed_data: dict, max_attempts: int = 3) -> bool:
+def post_to_discord_with_retry(
+    webhook_url: str,
+    embed_data: dict,
+    content: Optional[str] = None,
+    mention_user_ids: Optional[List[str]] = None,
+    max_attempts: int = 3,
+) -> bool:
     """
     POST Discord embed to webhook with retry logic.
     
@@ -166,6 +196,15 @@ def post_to_discord_with_retry(webhook_url: str, embed_data: dict, max_attempts:
         "embeds": [embed_data],
         "username": "⚔️ Arena de Duelos"
     }
+
+    if content:
+        payload["content"] = content
+
+    if mention_user_ids:
+        payload["allowed_mentions"] = {
+            "parse": [],
+            "users": mention_user_ids,
+        }
     
     headers = {
         "Content-Type": "application/json"
@@ -237,7 +276,9 @@ def send_discord_notification(
     score: str,
     zone_id: str,
     result_type: str,
-    supabase_client
+    supabase_client,
+    winner_discord_id: Optional[str] = None,
+    loser_discord_id: Optional[str] = None
 ) -> bool:
     """
     Send Discord notification for daily duel result.
@@ -254,6 +295,8 @@ def send_discord_notification(
         zone_id: UUID of the season_zone
         result_type: "WIN" (from winner's perspective) or "LOSS" (from loser's perspective)
         supabase_client: Supabase client instance
+        winner_discord_id: Winner's Discord user ID (optional for tagging)
+        loser_discord_id: Loser's Discord user ID (optional for tagging)
         
     Returns:
         True if notification sent successfully, False otherwise
@@ -270,13 +313,30 @@ def send_discord_notification(
             return False
         
         logger.info(f"📢 [SEND] Step 2: Building embed message for {result_type}...")
-        # Build embed
-        embed_data = build_discord_embed(winner_nick, loser_nick, score, result_type)
+        # Build embed with Discord IDs if available
+        winner_id_clean = normalize_discord_user_id(winner_discord_id)
+        loser_id_clean = normalize_discord_user_id(loser_discord_id)
+        embed_data = build_discord_embed(winner_nick, loser_nick, score, result_type, winner_id_clean, loser_id_clean)
         logger.info(f"📢 [SEND] Step 2: Embed built successfully")
+
+        mention_user_ids = []
+        if winner_id_clean:
+            mention_user_ids.append(winner_id_clean)
+        if loser_id_clean and loser_id_clean != winner_id_clean:
+            mention_user_ids.append(loser_id_clean)
+
+        mention_content = None
+        if mention_user_ids:
+            mention_content = " ".join([f"<@{uid}>" for uid in mention_user_ids])
         
         logger.info(f"📢 [SEND] Step 3: Posting to Discord with retry logic...")
         # Post with retry
-        success = post_to_discord_with_retry(webhook_url, embed_data)
+        success = post_to_discord_with_retry(
+            webhook_url,
+            embed_data,
+            content=mention_content,
+            mention_user_ids=mention_user_ids,
+        )
         
         if success:
             logger.info(f"📢 [SEND] ✅ SUCCESS: Discord notification posted: {winner_nick} vs {loser_nick} ({score}) - {result_type}")
@@ -301,7 +361,9 @@ def notify_duel_result(
     score: str,
     winner_zone_id: Optional[str],
     loser_zone_id: Optional[str],
-    supabase_client
+    supabase_client,
+    winner_discord_id: Optional[str] = None,
+    loser_discord_id: Optional[str] = None
 ) -> dict:
     """
     Send Discord notifications to both winner and loser zones.
@@ -316,6 +378,8 @@ def notify_duel_result(
         winner_zone_id: UUID of winner's zone (None if not in a zone)
         loser_zone_id: UUID of loser's zone (None if not in a zone)
         supabase_client: Supabase client instance
+        winner_discord_id: Winner's Discord user ID (optional for tagging)
+        loser_discord_id: Loser's Discord user ID (optional for tagging)
         
     Returns:
         Dict with notification results: {"winner": bool, "loser": bool}
@@ -337,7 +401,9 @@ def notify_duel_result(
                 score=score,
                 zone_id=winner_zone_id,
                 result_type="WIN",
-                supabase_client=supabase_client
+                supabase_client=supabase_client,
+                winner_discord_id=winner_discord_id,
+                loser_discord_id=loser_discord_id
             )
         else:
             logger.warning(f"📢 [NOTIFY] Winner {winner_nick} has no zone, skipping WIN notification")
@@ -351,7 +417,9 @@ def notify_duel_result(
                 score=score,
                 zone_id=loser_zone_id,
                 result_type="LOSS",
-                supabase_client=supabase_client
+                supabase_client=supabase_client,
+                winner_discord_id=winner_discord_id,
+                loser_discord_id=loser_discord_id
             )
         else:
             logger.warning(f"📢 [NOTIFY] Loser {loser_nick} has no zone, skipping LOSS notification")
