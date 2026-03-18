@@ -242,6 +242,9 @@ export async function fetchPendingMatchesSummary(playerId) {
   const fixture = getE2EDashboardFixture()
   if (fixture) return fixture.pendingMatches
 
+  const activeSeason = await fetchActiveSeason()
+  if (!activeSeason) return []
+
   const { data, error } = await supabase
     .from('scheduled_match')
     .select(`
@@ -254,6 +257,7 @@ export async function fetchPendingMatchesSummary(playerId) {
       player_b_id,
       competition:competition_id ( name )
     `)
+    .eq('season_id', activeSeason.season_id)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
     .order('deadline_at', { ascending: true, nullsFirst: false })

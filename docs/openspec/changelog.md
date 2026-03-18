@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### LIGA-JUGADOR — Portal del Jugador - March 2026
+
+**Nueva Funcionalidad (Change: `docs/openspec/changes/liga-jugador/`):**
+- Nuevo paquete `packages/liga-jugador/` — portal web mobile-first para jugadores
+- Autenticación Google OAuth con validación de email pre-autorizado
+- Dashboard personal con stats de temporada, zona/liga, y preview de batallas pendientes
+- Tabla de posiciones individuales con tabs Liga A/B, filtros de zona, jugador propio resaltado
+- Tabla de posiciones de equipos con podio visual de los 3 primeros por zona
+- Pantalla de batallas pendientes con countdown, filtros por tipo, y acciones Reportar/Vincular
+- Panel "Asociar Batallas": selección de batallas no vinculadas para linkear a enfrentamientos programados
+- Histórico personal de batallas con filtros de temporada y tipo, estadísticas globales
+- **Icono Ojo (👁) en todas las listas de batallas** para visualizar detalle completo (rondas, mazos, coronas)
+- Adaptación de `BattleDetailModal` de liga-admin para uso en el portal del jugador
+- Diseños de referencia: Stitch Project `4206610767598271327` (7 pantallas)
+
 #### RES (Card Restrictions) Feature - February 2026
 
 **Core Functionality**:

@@ -190,7 +190,7 @@ const RestrictionCard = ({
                       ${getRarityBorder(card.rarity)}
                     `}
                     role="img"
-                    aria-label={`${card.card_name}, ${card.rarity}`}
+                    aria-label={`${card.card_name}, ${card.rarity}, variante ${card.restriction_variant_label || 'Normal'}`}
                     tabIndex={0}
                     onKeyDown={e => {
                       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -228,6 +228,10 @@ const RestrictionCard = ({
                         </p>
                       </div>
                     )}
+
+                    <div className="absolute top-1 left-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {card.restriction_variant_label || 'Normal'}
+                    </div>
                   </div>
 
                   {/* Delete Button - appears on hover */}
@@ -245,7 +249,7 @@ const RestrictionCard = ({
                   {/* Tooltip on hover */}
                   {hoveredCardId === card.restriction_id && (
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-white whitespace-nowrap pointer-events-none z-10">
-                      {card.card_name}
+                      {card.card_name} · {card.restriction_variant_label || 'Normal'}
                     </div>
                   )}
                 </div>

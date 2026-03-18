@@ -16,7 +16,8 @@ openspec/
 │
 ├── products/                ← Product definitions
 │   ├── cron.md              ← CRON product (sync service)
-│   └── liga-admin.md        ← LIGA-ADMIN product (React dashboard)
+│   ├── liga-admin.md        ← LIGA-ADMIN product (React dashboard)
+│   └── liga-jugador.md      ← LIGA-JUGADOR product (Player portal) 🟡 En diseño
 │
 ├── features/                ← Feature specifications
 │   ├── cron/

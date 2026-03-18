@@ -19,20 +19,18 @@ function useCountdown(deadlineAt) {
     function calc() {
       const diff = new Date(deadlineAt).getTime() - Date.now()
       if (diff <= 0) {
-        setDisplay({ text: 'Vencida', urgent: true })
+        const elapsed = Math.abs(diff)
+        const days = Math.floor(elapsed / 86_400_000)
+        const hours = Math.floor((elapsed % 86_400_000) / 3_600_000)
+        const mins = Math.floor((elapsed % 3_600_000) / 60_000)
+        setDisplay({ expired: true, urgent: true, days, hours, mins })
         return
       }
       const days = Math.floor(diff / 86_400_000)
       const hours = Math.floor((diff % 86_400_000) / 3_600_000)
       const mins = Math.floor((diff % 3_600_000) / 60_000)
       const urgent = diff < 24 * 60 * 60 * 1000
-      const text =
-        days > 0
-          ? `${days}d ${hours}h ${mins}m`
-          : hours > 0
-            ? `${hours}h ${mins}m`
-            : `${mins}m`
-      setDisplay({ text, urgent })
+      setDisplay({ expired: false, urgent, days, hours, mins })
     }
 
     calc()
@@ -43,41 +41,93 @@ function useCountdown(deadlineAt) {
   return display
 }
 
-export default function PendingBattleCard({ match }) {
+function CountdownSegment({ value, unit, urgent }) {
+  return (
+    <span
+      className={[
+        'flex flex-col items-center rounded-lg px-2 py-1 min-w-[34px]',
+        urgent ? 'bg-red-500/15 text-red-400' : 'bg-slate-700/60 text-slate-300',
+      ].join(' ')}
+    >
+      <span className="text-sm font-bold leading-none tabular-nums">{value}</span>
+      <span className={`text-[10px] leading-none mt-0.5 ${urgent ? 'text-red-400/70' : 'text-slate-500'}`}>
+        {unit}
+      </span>
+    </span>
+  )
+}
+
+export default function PendingBattleCard({ match, onLink, onReport }) {
   const countdown = useCountdown(match.deadlineAt)
   const typeLabel = TYPE_LABEL[match.type] ?? match.type
   const TypeIcon = match.type === 'CUP_MATCH' ? Trophy : Swords
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="bg-blue-600/20 rounded-lg p-2 flex-shrink-0">
-          <TypeIcon className="w-4 h-4 text-blue-400" strokeWidth={2} />
+    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 flex flex-col gap-3">
+      {/* Top row: rival info + action buttons */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="bg-blue-600/20 rounded-lg p-2 flex-shrink-0">
+            <TypeIcon className="w-4 h-4 text-blue-400" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-200 truncate">
+              {match.rivalName ?? 'Rival por confirmar'}
+            </p>
+            <p className="text-xs text-slate-500 truncate">
+              {match.competitionName ? `${typeLabel} · ${match.competitionName}` : typeLabel}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-200 truncate">
-            {match.rivalName ?? 'Rival por confirmar'}
-          </p>
-          <p className="text-xs text-slate-500 truncate">
-            {match.competitionName ? `${typeLabel} · ${match.competitionName}` : typeLabel}
-          </p>
+
+        <div className="flex-shrink-0 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onReport?.(match)}
+            className="text-xs px-2.5 py-1 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-500"
+          >
+            Reportar
+          </button>
+          <button
+            type="button"
+            onClick={() => onLink?.(match)}
+            className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+          >
+            Vincular
+          </button>
         </div>
       </div>
 
-      <div className="flex-shrink-0 flex items-center gap-1.5">
+      {/* Bottom row: vencimiento */}
+      <div className="flex items-center gap-2 border-t border-slate-700/40 pt-2.5">
+        <Clock
+          className={`w-3.5 h-3.5 flex-shrink-0 ${countdown?.urgent ? 'text-red-400' : 'text-slate-500'}`}
+          strokeWidth={2}
+        />
+        <span className={`text-xs mr-1 ${countdown?.urgent ? 'text-red-400/80' : 'text-slate-500'}`}>
+          Vence en
+        </span>
         {countdown ? (
-          <>
-            <Clock className={`w-3.5 h-3.5 ${countdown.urgent ? 'text-red-400' : 'text-slate-500'}`} />
-            <span
-              className={`text-xs font-medium whitespace-nowrap ${
-                countdown.urgent ? 'text-red-400' : 'text-slate-400'
-              }`}
-            >
-              {countdown.text}
-            </span>
-          </>
+          countdown.expired ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-semibold text-red-400 mr-0.5">Expirado hace</span>
+              {countdown.days > 0 && (
+                <CountdownSegment value={countdown.days} unit="días" urgent />
+              )}
+              <CountdownSegment value={countdown.hours} unit="hs" urgent />
+              <CountdownSegment value={countdown.mins} unit="min" urgent />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              {countdown.days > 0 && (
+                <CountdownSegment value={countdown.days} unit="días" urgent={countdown.urgent} />
+              )}
+              <CountdownSegment value={countdown.hours} unit="hs" urgent={countdown.urgent} />
+              <CountdownSegment value={countdown.mins} unit="min" urgent={countdown.urgent} />
+            </div>
+          )
         ) : (
-          <span className="text-xs text-slate-500">Sin horario</span>
+          <span className="text-xs text-slate-500 italic">Sin fecha límite</span>
         )}
       </div>
     </div>

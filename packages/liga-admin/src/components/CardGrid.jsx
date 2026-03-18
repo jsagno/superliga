@@ -30,7 +30,7 @@ import {
 } from '../utils/cardParser';
 
 // Rarity filter options for pills
-const RARITIES = ['all', 'champion', 'legendary', 'epic', 'rare', 'common', 'evolution'];
+const RARITIES = ['all', 'champion', 'legendary', 'epic', 'rare', 'common', 'evolution', 'hero'];
 
 const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => {
   const [cards, setCards] = useState([]);
@@ -81,7 +81,7 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
     }
   }, []);
 
-  // Calculate card stats by rarity (including evolution variants)
+  // Calculate card stats by rarity (including evolution and hero variants)
   const rarityStats = useMemo(() => {
     const stats = {
       all: 0,
@@ -91,6 +91,7 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
       rare: 0,
       common: 0,
       evolution: 0,
+      hero: 0,
     };
 
     cards.forEach(card => {
@@ -107,17 +108,23 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
         stats.evolution++;
         stats.all++;
       }
+
+      // Count hero version if available
+      if (card.parsed?.hasHero) {
+        stats.hero++;
+        stats.all++;
+      }
     });
 
     return stats;
   }, [cards]);
 
-  // Filter and search cards, expanding evolution variants
+  // Filter and search cards, expanding evolution/hero variants
   const filteredCards = useMemo(() => {
     let result = cards;
 
-    // Apply rarity filter (evolution is handled separately in expansion)
-    if (selectedRarity !== 'all' && selectedRarity !== 'evolution') {
+    // Apply rarity filter (variant filters are handled separately in expansion)
+    if (selectedRarity !== 'all' && selectedRarity !== 'evolution' && selectedRarity !== 'hero') {
       result = result.filter(
         card => (card.parsed?.rarity || 'common').toLowerCase() === selectedRarity
       );
@@ -144,8 +151,19 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
             displayIcon: card.parsed?.iconEvolution,
           });
         }
+      } else if (selectedRarity === 'hero') {
+        // Only show hero variants for this filter
+        if (card.parsed?.hasHero) {
+          expanded.push({
+            ...card,
+            variant: 'hero',
+            variantId: `${card.card_id}_hero`,
+            displayName: `${card.name} (Heroe)`,
+            displayIcon: card.parsed?.iconHero,
+          });
+        }
       } else {
-        // Show both normal and evolution variants for this filter
+        // Show normal + evolution + hero variants for this filter
         // Add normal version
         expanded.push({
           ...card,
@@ -165,6 +183,17 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
             displayIcon: card.parsed?.iconEvolution,
           });
         }
+
+        // Add hero version if available
+        if (card.parsed?.hasHero) {
+          expanded.push({
+            ...card,
+            variant: 'hero',
+            variantId: `${card.card_id}_hero`,
+            displayName: `${card.name} (Heroe)`,
+            displayIcon: card.parsed?.iconHero,
+          });
+        }
       }
     });
 
@@ -174,18 +203,19 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
   // Check if card variant is selected
   const isCardSelected = useCallback(
     variantId => selectedCards.some(c => {
-      // Support both old card_id format and new variantId format
-      if (typeof c.card_id === 'string' && c.card_id.includes('_evo')) {
-        return c.card_id === variantId;
-      }
-      // For backward compatibility with normal cards
-      if (typeof variantId === 'string' && variantId.includes('_evo')) {
-        return false; // Evolution card looking for normal
-      }
-      return c.card_id === variantId;
+      return String(c.card_id) === String(variantId);
     }),
     [selectedCards]
   );
+
+  const visibleSelectedCount = useMemo(
+    () => filteredCards.filter(card => isCardSelected(card.variantId)).length,
+    [filteredCards, isCardSelected]
+  );
+
+  const allVisibleSelected = filteredCards.length > 0 && visibleSelectedCount === filteredCards.length;
+  const canBulkSelectVisible = filteredCards.length > 0 && !allVisibleSelected;
+  const canBulkClearVisible = visibleSelectedCount > 0;
 
   // Handle card selection toggle (including evolution variants)
   const handleCardToggle = useCallback(
@@ -202,12 +232,45 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
         onCardToggle({
           card_id: cardVariant.variantId,
           name: cardVariant.displayName,
+          displayName: cardVariant.displayName,
+          displayIcon: cardVariant.displayIcon,
+          variant: cardVariant.variant,
           parsed: cardVariant.parsed,
         });
       }
     },
     [isCardSelected, selectedCards.length, maxSelection, onCardToggle]
   );
+
+  const handleToggleVisibleCards = useCallback(() => {
+    if (!filteredCards.length) return;
+
+    if (allVisibleSelected) {
+      filteredCards.forEach(cardVariant => {
+        onCardToggle({ card_id: cardVariant.variantId });
+      });
+      return;
+    }
+
+    const unselectedVisibleCards = filteredCards.filter(cardVariant => !isCardSelected(cardVariant.variantId));
+    const remainingSlots = maxSelection ? Math.max(maxSelection - selectedCards.length, 0) : unselectedVisibleCards.length;
+    const cardsToSelect = maxSelection ? unselectedVisibleCards.slice(0, remainingSlots) : unselectedVisibleCards;
+
+    cardsToSelect.forEach(cardVariant => {
+      onCardToggle({
+        card_id: cardVariant.variantId,
+        name: cardVariant.displayName,
+        displayName: cardVariant.displayName,
+        displayIcon: cardVariant.displayIcon,
+        variant: cardVariant.variant,
+        parsed: cardVariant.parsed,
+      });
+    });
+
+    if (maxSelection && cardsToSelect.length < unselectedVisibleCards.length) {
+      alert(`Only ${cardsToSelect.length} visible cards were selected because the maximum is ${maxSelection}.`);
+    }
+  }, [allVisibleSelected, filteredCards, isCardSelected, maxSelection, onCardToggle, selectedCards.length]);
 
   // Handle keyboard navigation and selection
   const handleGridKeyDown = useCallback(
@@ -287,16 +350,26 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
         {RARITIES.map(rarity => {
           const isActive = selectedRarity === rarity;
           const displayName =
-            rarity === 'all' ? 'All' : rarity === 'evolution' ? 'Evolution' : getRarityLabel(rarity);
+            rarity === 'all'
+              ? 'All'
+              : rarity === 'evolution'
+                ? 'Evolution'
+                : rarity === 'hero'
+                  ? 'Heroe'
+                  : getRarityLabel(rarity);
           const count = rarityStats[rarity];
 
-          // Special styling for evolution filter
+          // Special styling for variant filters
           let buttonClass;
-          if (rarity === 'evolution') {
+          if (rarity === 'evolution' || rarity === 'hero') {
             buttonClass = `px-4 py-2 rounded-full font-medium transition-colors ${
               isActive
-                ? 'bg-purple-500/20 text-purple-400 ring-2 ring-purple-400'
-                : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
+                ? rarity === 'evolution'
+                  ? 'bg-purple-500/20 text-purple-400 ring-2 ring-purple-400'
+                  : 'bg-rose-500/20 text-rose-400 ring-2 ring-rose-400'
+                : rarity === 'evolution'
+                  ? 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
+                  : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
             }`;
           } else {
             const colors = getRarityColor(rarity === 'all' ? 'common' : rarity);
@@ -317,6 +390,8 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
             >
               {rarity === 'evolution' ? (
                 <span className="mr-1">✨</span>
+              ) : rarity === 'hero' ? (
+                <span className="mr-1">🦸</span>
               ) : rarity !== 'all' ? (
                 <span className="mr-1">{getRarityEmoji(rarity)}</span>
               ) : null}
@@ -327,11 +402,25 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
       </div>
 
       {/* Selection Info */}
-      {maxSelection && (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-slate-400">
-          Selected: {selectedCards.length} / {maxSelection}
+          {maxSelection ? `Selected: ${selectedCards.length} / ${maxSelection}` : `Selected: ${selectedCards.length}`}
         </div>
-      )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleToggleVisibleCards}
+            disabled={!filteredCards.length || (!canBulkSelectVisible && !canBulkClearVisible)}
+            className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {allVisibleSelected ? 'Quitar visibles' : 'Seleccionar visibles'}
+          </button>
+          <span className="text-xs text-slate-500">
+            {visibleSelectedCount} de {filteredCards.length} visibles seleccionadas
+          </span>
+        </div>
+      </div>
 
       {/* Card Grid */}
       <div
@@ -382,7 +471,7 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
                 } ${isFocused ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
                 aria-label={`${card.displayName}, ${getRarityLabel(card.parsed?.rarity)}, ${
                   card.parsed?.elixir
-                } elixir${card.variant === 'evolution' ? ', evolution' : ''}`}
+                } elixir${card.variant === 'evolution' ? ', evolution' : ''}${card.variant === 'hero' ? ', heroe' : ''}`}
                 aria-pressed={selected}
                 tabIndex={isFocused ? 0 : -1}
               >
@@ -404,6 +493,13 @@ const CardGrid = ({ selectedCards = [], onCardToggle, maxSelection = null }) => 
                 {card.variant === 'evolution' && (
                   <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-purple-600/80 text-white text-xs font-bold shadow-md">
                     EVO
+                  </div>
+                )}
+
+                {/* Hero badge */}
+                {card.variant === 'hero' && (
+                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-rose-600/80 text-white text-xs font-bold shadow-md">
+                    HERO
                   </div>
                 )}
 

@@ -18,7 +18,9 @@ export function parseCardPayload(raw_payload) {
       elixir: 0,
       maxLevel: 14,
       iconEvolution: null,
+      iconHero: null,
       hasEvolution: false,
+      hasHero: false,
     };
   }
 
@@ -26,12 +28,66 @@ export function parseCardPayload(raw_payload) {
     name: raw_payload.name || 'Unknown Card',
     icon: raw_payload.iconUrls?.medium || null,
     iconEvolution: raw_payload.iconUrls?.evolutionMedium || null,
+    iconHero: raw_payload.iconUrls?.heroMedium || null,
     hasEvolution: !!(raw_payload.iconUrls?.evolutionMedium && raw_payload.maxEvolutionLevel > 0),
+    hasHero: !!raw_payload.iconUrls?.heroMedium,
     rarity: (raw_payload.rarity || 'common').toLowerCase(),
     elixir: raw_payload.elixirCost || 0,
     maxLevel: raw_payload.maxLevel || 14,
     maxEvolutionLevel: raw_payload.maxEvolutionLevel || 0,
   };
+}
+
+export function getCardVariantFromEvolutionLevel(evolutionLevel) {
+  if (Number(evolutionLevel) === 2) return 'hero';
+  if (Number(evolutionLevel) === 1) return 'evolution';
+  return 'normal';
+}
+
+export function getCardVariantFromSelectionId(cardId) {
+  if (typeof cardId !== 'string') {
+    return 'normal';
+  }
+
+  if (cardId.endsWith('_hero')) return 'hero';
+  if (cardId.endsWith('_evo')) return 'evolution';
+  return 'normal';
+}
+
+export function getBaseCardId(cardId) {
+  if (typeof cardId !== 'string') {
+    return Number(cardId);
+  }
+
+  return Number(cardId.replace(/_(evo|hero)$/, ''));
+}
+
+export function getCardVariantLabel(variant) {
+  switch ((variant || 'normal').toLowerCase()) {
+    case 'hero':
+      return 'Heroe';
+    case 'evolution':
+      return 'Evo';
+    case 'all':
+      return 'Todas';
+    default:
+      return 'Normal';
+  }
+}
+
+export function getCardIconForVariant(cardData, variant) {
+  if (!cardData) return null;
+
+  switch ((variant || 'normal').toLowerCase()) {
+    case 'hero':
+      return cardData.iconHero || cardData.iconEvolution || cardData.icon || null;
+    case 'evolution':
+      return cardData.iconEvolution || cardData.icon || null;
+    case 'all':
+      return cardData.iconHero || cardData.iconEvolution || cardData.icon || null;
+    default:
+      return cardData.icon || null;
+  }
 }
 
 /**
