@@ -1,97 +1,65 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient"; // <-- ajustá si tu path es otro
+import {
+  getSession,
+  onAuthStateChange,
+  resolveAdminIdentity,
+  signOut,
+} from "../services/authService";
 
 const AuthContext = createContext(null);
-const ALLOWED_ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "SUPER_USER"]);
-const AUTH_TIMEOUT_MS = 8000;
-
-function withTimeout(promise, ms, timeoutMessage) {
-  let timeoutId;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), ms);
-  });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    clearTimeout(timeoutId);
-  });
-}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchUserRole(userId) {
-    if (!userId) {
+  async function handleSession(nextSession) {
+    if (!nextSession) {
+      setSession(null);
       setRole(null);
-      return null;
+      setError(null);
+      return;
     }
 
-    const { data, error } = await supabase
-      .from("app_user")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
+    setSession(nextSession);
+    setError(null);
 
-    if (error) {
-      console.error("fetchUserRole error:", error);
+    try {
+      const identity = await resolveAdminIdentity(nextSession);
+
+      if (!identity?.isAdmin) {
+        await signOut();
+        setSession(null);
+        setRole(null);
+        setError("Acceso denegado. Rol administrativo requerido.");
+        return;
+      }
+
+      setRole(identity.role);
+    } catch (err) {
+      console.error("Auth identity resolution error:", err);
+      setSession(null);
       setRole(null);
-      return null;
+      setError(err?.message ?? "Error al verificar identidad");
     }
-
-    const nextRole = data?.role ?? null;
-    setRole(nextRole);
-    return nextRole;
   }
 
   useEffect(() => {
     let mounted = true;
 
-    async function resolveRoleForSession(nextSession) {
-      if (!mounted) return;
-
-      setSession(nextSession ?? null);
-
-      if (!nextSession?.user?.id) {
-        setRole(null);
-        return;
-      }
-
-      try {
-        await withTimeout(
-          fetchUserRole(nextSession.user.id),
-          AUTH_TIMEOUT_MS,
-          "fetchUserRole timeout",
-        );
-      } catch (err) {
-        console.error("resolveRoleForSession error:", err);
-        setRole(null);
-      }
-    }
-
     async function init() {
       setLoading(true);
       try {
-        const { data, error } = await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_TIMEOUT_MS,
-          "getSession timeout",
-        );
-
+        const currentSession = await getSession();
         if (!mounted) return;
-
-        if (error) {
-          console.error("getSession error:", error);
-          setSession(null);
-          setRole(null);
-        } else {
-          await resolveRoleForSession(data.session ?? null);
-        }
+        await handleSession(currentSession);
       } catch (err) {
         if (!mounted) return;
         console.error("init auth error:", err);
         setSession(null);
         setRole(null);
+        setError(err?.message ?? "Error al inicializar autenticación");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -99,25 +67,30 @@ export function AuthProvider({ children }) {
 
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const unsubscribe = onAuthStateChange(async (newSession) => {
       if (!mounted) return;
       setLoading(true);
-      await resolveRoleForSession(newSession ?? null);
+      await handleSession(newSession ?? null);
       if (mounted) setLoading(false);
     });
 
     return () => {
       mounted = false;
-      sub?.subscription?.unsubscribe?.();
+      unsubscribe?.();
     };
   }, []);
 
-  const isAdmin = !!role && ALLOWED_ADMIN_ROLES.has(role);
-  const value = useMemo(() => ({ session, loading, role, isAdmin }), [session, loading, role, isAdmin]);
+  const isAdmin = !!role;
+  const user = session?.user ?? null;
+  const value = useMemo(
+    () => ({ session, user, loading, role, isAdmin, error }),
+    [session, user, loading, role, isAdmin, error],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

@@ -1,14 +1,18 @@
 // src/pages/admin/LoginAdmin.jsx
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Eye, EyeOff, LogIn, Mail } from "lucide-react";
+import { ArrowLeft, User, Eye, EyeOff, LogIn, Mail, Chrome } from "lucide-react";
+import {
+  resolveAdminIdentity,
+  signInWithGoogle,
+  signInWithPassword,
+  signOut,
+} from "../../services/authService";
 
-// Si ya tenés supabase configurado en /src/lib/supabase.js, descomentá:
- import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function LoginAdmin() {
   const navigate = useNavigate();
-  const ALLOWED_ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "SUPER_USER"]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,30 +40,33 @@ export default function LoginAdmin() {
     setLoading(true);
 
     try {
-       const { data, error } = await supabase.auth.signInWithPassword({
-         email,
-         password,
-       });
-       if (error) throw error;
-       if (!data?.session) throw new Error("No session returned.");
+      const session = await signInWithPassword({ email, password });
+      if (!session) throw new Error("No se pudo establecer sesión.");
 
-       const { data: appUser, error: roleError } = await supabase
-         .from("app_user")
-         .select("role")
-         .eq("id", data.session.user.id)
-         .maybeSingle();
+      const identity = await resolveAdminIdentity(session);
+      if (!identity?.isAdmin) {
+        await signOut();
+        throw new Error("Acceso denegado. Rol administrativo requerido.");
+      }
 
-       if (roleError) throw roleError;
-       if (!ALLOWED_ADMIN_ROLES.has(appUser?.role ?? "")) {
-         await supabase.auth.signOut();
-         throw new Error("Access denied. Admin role required.");
-       }
-
-      // Opción simple por ahora:
-      navigate("/admin");
+      navigate("/admin", { replace: true });
     } catch (err) {
       setErrorMsg(err?.message || "Error al iniciar sesión.");
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    if (loading) return;
+
+    setErrorMsg("");
+    setLoading(true);
+
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setErrorMsg(err?.message || "Error al iniciar sesión con Google.");
       setLoading(false);
     }
   }
@@ -220,6 +227,16 @@ export default function LoginAdmin() {
               >
                 <span>{loading ? "Ingresando..." : "Iniciar Sesión"}</span>
                 <LogIn size={20} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-white text-slate-900 font-semibold shadow-lg transition-all hover:bg-slate-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <Chrome size={20} />
+                <span>{loading ? "Redirigiendo..." : "Continuar con Google"}</span>
               </button>
             </form>
           ) : (

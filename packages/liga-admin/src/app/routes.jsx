@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import AdminLayout from "../components/AdminLayout.jsx";
 import ProtectedRoute from "../components/ProtectedRoute.jsx";
 
@@ -31,6 +31,7 @@ import SeasonRestrictionEdit from "../pages/admin/SeasonRestrictionEdit.jsx";
 import ZoneDiscordWebhooks from "../pages/admin/ZoneDiscordWebhooks.jsx";
 
 const router = createBrowserRouter([
+  { path: "/", element: <Navigate to="/admin/login" replace /> },
   { path: "/admin/login", element: <LoginAdmin /> },
   { path: "/admin/reset-password", element: <ResetPassword /> },
 
