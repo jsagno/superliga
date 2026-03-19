@@ -21,7 +21,8 @@ const E2E_DASHBOARD_FIXTURES = {
       seasonId: 'season-1',
       seasonName: 'Temporada 1',
       duelStartDate: '2026-03-01T00:00:00.000Z',
-      ladderStartDate: '2026-03-25T00:00:00.000Z',
+      duelEndDate: '2026-03-16',
+      ladderStartDate: '2026-03-17T00:00:00.000Z',
     },
     stats: {
       position: 4,
@@ -64,7 +65,8 @@ const E2E_DASHBOARD_FIXTURES = {
       seasonId: 'season-1',
       seasonName: 'Temporada 1',
       duelStartDate: '2026-03-01T00:00:00.000Z',
-      ladderStartDate: '2026-03-25T00:00:00.000Z',
+      duelEndDate: '2026-03-16',
+      ladderStartDate: '2026-03-17T00:00:00.000Z',
     },
     stats: {
       position: 8,
@@ -90,6 +92,7 @@ const E2E_DASHBOARD_FIXTURES = {
       seasonId: 'season-1',
       seasonName: 'Temporada 1',
       duelStartDate: '2099-03-25T00:00:00.000Z',
+      duelEndDate: '2099-04-09',
       ladderStartDate: '2099-04-10T00:00:00.000Z',
     },
     stats: {
@@ -121,7 +124,8 @@ const E2E_DASHBOARD_FIXTURES = {
       seasonId: 'season-1',
       seasonName: 'Temporada 1',
       duelStartDate: '2026-03-01T00:00:00.000Z',
-      ladderStartDate: '2026-03-25T00:00:00.000Z',
+      duelEndDate: '2026-03-16',
+      ladderStartDate: '2026-03-17T00:00:00.000Z',
     },
     stats: {
       position: 12,
@@ -147,15 +151,43 @@ const E2E_DASHBOARD_FIXTURES = {
       seasonId: 'season-1',
       seasonName: 'Temporada 1',
       duelStartDate: '2026-03-01T00:00:00.000Z',
-      ladderStartDate: '2026-03-25T00:00:00.000Z',
+      duelEndDate: '2026-03-16',
+      ladderStartDate: '2026-03-17T00:00:00.000Z',
     },
     stats: {
       position: 1,
-      wins: 20,
+      wins: 16,
       losses: 0,
       winRate: 100,
-      pointsTotal: 60,
+      pointsTotal: 48,
       deltaPosition: 5,
+    },
+    pendingMatches: [],
+  },
+  duelsFirstDay: {
+    profile: {
+      playerId: 'e2e-player',
+      name: 'Jugador Test',
+      nick: 'JT',
+      league: 'A',
+      teamId: 'team-1',
+      teamName: 'Berserk',
+      teamLogo: null,
+      zoneId: 'zone-1',
+      zoneName: 'Zona 1',
+      seasonId: 'season-1',
+      seasonName: 'Temporada 1',
+      duelStartDate: '2026-03-19T00:00:00.000Z',
+      duelEndDate: '2026-04-03',
+      ladderStartDate: '2026-04-04T00:00:00.000Z',
+    },
+    stats: {
+      position: 10,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+      pointsTotal: 0,
+      deltaPosition: 0,
     },
     pendingMatches: [],
   },
@@ -176,7 +208,7 @@ function getE2EDashboardFixture() {
 async function fetchActiveSeason() {
   const { data, error } = await supabase
     .from('season')
-    .select('season_id, description, duel_start_date, ladder_start_date')
+    .select('season_id, description, duel_start_date, duel_end_date, ladder_start_date')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -240,6 +272,7 @@ export async function fetchPlayerProfile(playerId) {
     seasonId: activeSeason.season_id,
     seasonName: activeSeason.description ?? null,
     duelStartDate: activeSeason.duel_start_date ?? null,
+    duelEndDate: activeSeason.duel_end_date ?? null,
     ladderStartDate: activeSeason.ladder_start_date ?? null,
   }
 }

@@ -86,7 +86,7 @@ test.describe('Dashboard — authenticated bypass scenarios', () => {
     await expect(page).toHaveURL(/\/dashboard/)
     await expect(page.getByRole('heading', { name: /Bienvenido, Jugador Test/i })).toBeVisible()
     await expect(page.getByText(/Zona 1 · Liga A/i)).toBeVisible()
-    await expect(page.getByText(/Progreso Duelos · 10\/20/i)).toBeVisible()
+    await expect(page.getByText(/Progreso Duelos · 10\/16/i)).toBeVisible()
     await expect(page.getByText('Victorias')).toBeVisible()
     await expect(page.getByText('Rival Uno')).toBeVisible()
     await expect(page.getByRole('link', { name: /Ver todas las batallas/i })).toBeVisible()
@@ -96,10 +96,19 @@ test.describe('Dashboard — authenticated bypass scenarios', () => {
     await setE2EAuth(page, { authenticated: true, scenario: 'preDuelStart' })
     await page.goto('/dashboard')
 
-    await expect(page.getByText(/Progreso Duelos · 6\/20/i)).toBeVisible()
+    await expect(page.getByText(/Progreso Duelos · 6\/16/i)).toBeVisible()
     await expect(page.getByText(/Fase de duelos comienza en/i)).toBeVisible()
     await expect(page.getByText(/día restante/i)).not.toBeVisible()
     await expect(page.getByText(/días restantes/i)).not.toBeVisible()
+  })
+
+  test('does not show "Últimas 24 horas" on the first day of duels', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, scenario: 'duelsFirstDay' })
+    await page.goto('/dashboard')
+
+    await expect(page.getByText(/Progreso Duelos · 0\/16/i)).toBeVisible()
+    await expect(page.getByText(/días restantes/i)).toBeVisible()
+    await expect(page.getByText(/Últimas 24 horas/i)).not.toBeVisible()
   })
 
   test('shows empty pending state when player has no pending matches', async ({ page }) => {
@@ -132,11 +141,11 @@ test.describe('Dashboard — authenticated bypass scenarios', () => {
     await expect(page.getByText(/Zona 2 · Liga B/i)).toBeVisible()
   })
 
-  test('shows "Fase de duelos finalizada" when all 20/20 battles are completed', async ({ page }) => {
+  test('shows "Fase de duelos finalizada" when all 16/16 battles are completed', async ({ page }) => {
     await setE2EAuth(page, { authenticated: true, scenario: 'duelsCompleted' })
     await page.goto('/dashboard')
 
-    await expect(page.getByText(/Progreso Duelos · 20\/20/i)).toBeVisible()
+    await expect(page.getByText(/Progreso Duelos · 16\/16/i)).toBeVisible()
     await expect(page.getByText(/Fase de duelos finalizada/i)).toBeVisible()
     await expect(page.getByText(/día restante/i)).not.toBeVisible()
     await expect(page.getByText(/días restantes/i)).not.toBeVisible()
