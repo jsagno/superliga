@@ -23,6 +23,8 @@ const emptyForm = {
   status: "PENDING",
 };
 
+const UTC_MINUS_3_MS = 3 * 60 * 60 * 1000;
+
 const SCHEDULED_MATCH_SELECT = `
   scheduled_match_id,
   season_id,
@@ -106,10 +108,11 @@ function fromInputValue(v) {
   }
 }
 
-function formatDateOnly(ts) {
+function formatDateOnly(ts, opts = {}) {
   if (!ts) return "—";
   try {
-    const d = new Date(ts);
+    const source = new Date(ts);
+    const d = opts.utcMinus3 ? new Date(source.getTime() - UTC_MINUS_3_MS) : source;
     return d.toLocaleDateString("es-AR");
   } catch {
     return "—";
@@ -137,9 +140,9 @@ function formatTimeRemaining(ts, nowMs) {
   return diff >= 0 ? txt : `vencido hace ${txt}`;
 }
 
-function formatDeadline(ts, nowMs) {
+function formatDeadline(ts, nowMs, opts = {}) {
   if (!ts) return "—";
-  const date = formatDateOnly(ts);
+  const date = formatDateOnly(ts, opts);
   const rem = formatTimeRemaining(ts, nowMs);
   return rem ? `${date} (${rem})` : date;
 }
@@ -1858,12 +1861,12 @@ async function fetchGroupsForStage(stageId) {
                     <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/70">
                       <div className="rounded-xl bg-[#0b1220] border border-white/10 px-3 py-2">
                         <div className="text-xs text-white/50">Deadline</div>
-                        <div>{formatDeadline(r.deadline_at, nowTs)}</div>
+                        <div>{formatDeadline(r.deadline_at, nowTs, { utcMinus3: r.type === "CW_DAILY" && r.stage === "SW_Duel_1v1" })}</div>
                       </div>
                       <div className="rounded-xl bg-[#0b1220] border border-white/10 px-3 py-2">
                         <div className="text-xs text-white/50">Ventana</div>
                         <div>
-                          {formatDateOnly(r.scheduled_from)} <span className="text-white/40">→</span> {formatDateOnly(r.scheduled_to)}
+                          {formatDateOnly(r.scheduled_from, { utcMinus3: r.type === "CW_DAILY" && r.stage === "SW_Duel_1v1" })} <span className="text-white/40">→</span> {formatDateOnly(r.scheduled_to, { utcMinus3: r.type === "CW_DAILY" && r.stage === "SW_Duel_1v1" })}
                         </div>
                       </div>
                       <div className="rounded-xl bg-[#0b1220] border border-white/10 px-3 py-2">

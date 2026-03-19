@@ -61,6 +61,7 @@ export default function PendingBattleCard({ match, onLink, onReport }) {
   const countdown = useCountdown(match.deadlineAt)
   const typeLabel = TYPE_LABEL[match.type] ?? match.type
   const TypeIcon = match.type === 'CUP_MATCH' ? Trophy : Swords
+  const isLinkDisabled = Boolean(match.linkDisabled)
 
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 flex flex-col gap-3">
@@ -77,6 +78,9 @@ export default function PendingBattleCard({ match, onLink, onReport }) {
             <p className="text-xs text-slate-500 truncate">
               {match.competitionName ? `${typeLabel} · ${match.competitionName}` : typeLabel}
             </p>
+            {match.isVirtual && (
+              <p className="text-[11px] text-amber-300/80 truncate">Pendiente visual (sin vinculación)</p>
+            )}
           </div>
         </div>
 
@@ -91,9 +95,15 @@ export default function PendingBattleCard({ match, onLink, onReport }) {
           <button
             type="button"
             onClick={() => onLink?.(match)}
-            className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+            disabled={isLinkDisabled}
+            className={[
+              'text-xs px-2.5 py-1 rounded-lg text-white',
+              isLinkDisabled
+                ? 'bg-slate-700/70 text-slate-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-500',
+            ].join(' ')}
           >
-            Vincular
+            {isLinkDisabled ? 'No vinculable' : 'Vincular'}
           </button>
         </div>
       </div>

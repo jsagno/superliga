@@ -2,6 +2,11 @@
 // SPEC: docs/openspec/changes/liga-jugador/tasks.md — Task 4.1
 
 import { supabase } from '../supabaseClient.js'
+import {
+  getBattleDateKeyWithCutoff,
+  getCurrentBattleDateKey,
+  getNextCutoffIso,
+} from './duelDayUtils.js'
 
 const E2E_AUTH_BYPASS_ENABLED = import.meta.env.VITE_E2E_AUTH_BYPASS === 'true'
 const DASHBOARD_SCENARIO_STORAGE_KEY = 'ligaJugador:e2eDashboardScenario'
@@ -205,10 +210,51 @@ function getE2EDashboardFixture() {
   return E2E_DASHBOARD_FIXTURES[scenario] ?? E2E_DASHBOARD_FIXTURES.default
 }
 
+function buildVirtualDailyPending(todayKey, deadlineAt) {
+  return {
+    scheduledMatchId: `virtual-cw-daily-${todayKey}`,
+    type: 'CW_DAILY',
+    deadlineAt: deadlineAt || null,
+    scheduledFrom: deadlineAt || null,
+    rivalName: null,
+    competitionName: 'Duelo Diario',
+    isVirtual: true,
+    linkDisabled: true,
+    status: 'PENDING',
+  }
+}
+
+async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
+  const todayKey = getCurrentBattleDateKey(activeSeason)
+  const startKey = getBattleDateKeyWithCutoff(activeSeason.duel_start_date, activeSeason)
+  const endKey = getBattleDateKeyWithCutoff(activeSeason.duel_end_date, activeSeason)
+
+  if (!startKey || !endKey) return null
+  if (todayKey < startKey || todayKey > endKey) return null
+
+  const { data, error } = await supabase
+    .from('scheduled_match')
+    .select('scheduled_match_id, scheduled_from')
+    .eq('season_id', activeSeason.season_id)
+    .eq('type', 'CW_DAILY')
+    .eq('stage', 'SW_Duel_1v1')
+    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+    .limit(100)
+
+  if (error) throw error
+
+  const hasTodayDaily = (data ?? []).some(
+    (row) => getBattleDateKeyWithCutoff(row.scheduled_from, activeSeason) === todayKey,
+  )
+  if (hasTodayDaily) return null
+
+  return buildVirtualDailyPending(todayKey, getNextCutoffIso(activeSeason))
+}
+
 async function fetchActiveSeason() {
   const { data, error } = await supabase
     .from('season')
-    .select('season_id, description, duel_start_date, duel_end_date, ladder_start_date')
+    .select('season_id, description, duel_start_date, duel_end_date, ladder_start_date, battle_cutoff_minutes, battle_cutoff_tz_offset')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -347,7 +393,7 @@ export async function fetchPendingMatchesSummary(playerId) {
     .eq('status', 'PENDING')
     .order('deadline_at', { ascending: true, nullsFirst: false })
     .order('scheduled_from', { ascending: true, nullsFirst: false })
-    .limit(3)
+    .limit(20)
 
   if (error) throw error
 
@@ -372,7 +418,7 @@ export async function fetchPendingMatchesSummary(playerId) {
     playerNameById = new Map((rivals ?? []).map((player) => [player.player_id, player.name]))
   }
 
-  return matches.map((sm) => {
+  const mapped = matches.map((sm) => {
     const rivalId = sm.player_a_id === playerId ? sm.player_b_id : sm.player_a_id
 
     return {
@@ -384,4 +430,8 @@ export async function fetchPendingMatchesSummary(playerId) {
       competitionName: sm.competition?.name ?? null,
     }
   })
+
+  const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
+  const combined = virtualDaily ? [virtualDaily, ...mapped] : mapped
+  return combined.slice(0, 3)
 }
