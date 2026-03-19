@@ -404,38 +404,86 @@ async function fetchDistinctModes() {
   return modes;
 }
 
-async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId }) {
-  // Buscar todas las batallas sin filtro de jugador específico
-  let q = supabase
-    .from("battle")
-    .select("battle_id,battle_time,api_game_mode")
-    .order("battle_time", { ascending: false })
-    .limit(1000); // límite para evitar cargas enormes
+async function fetchScopedAssignments({ seasonId, zoneId, teamId, playerId, selectFields }) {
+  let query = supabase
+    .from('season_zone_team_player')
+    .select(seasonId ? `${selectFields}, season_zone!inner(season_id)` : selectFields);
 
-  if (mode) q = q.eq("api_game_mode", mode);
-  if (fromISO) q = q.gte("battle_time", fromISO);
-  if (toISO) q = q.lte("battle_time", toISO);
+  if (seasonId) {
+    query = query.eq('season_zone.season_id', seasonId);
+  }
 
-  const { data: battles, error } = await q;
+  if (zoneId) {
+    query = query.eq('zone_id', zoneId);
+  }
+
+  if (teamId) {
+    query = query.eq('team_id', teamId);
+  }
+
+  if (playerId) {
+    query = query.eq('player_id', playerId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
+  return data || [];
+}
+
+async function fetchAllRowsPaged(buildQuery, pageSize = 1000) {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await buildQuery(from, to);
+    if (error) throw error;
+
+    const chunk = data || [];
+    if (chunk.length === 0) {
+      break;
+    }
+
+    rows.push(...chunk);
+
+    if (chunk.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return rows;
+}
+
+async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId, seasonId }) {
+  // Buscar todas las batallas sin filtro de jugador específico
+  const battles = await fetchAllRowsPaged((from, to) => {
+    let q = supabase
+      .from("battle")
+      .select("battle_id,battle_time,api_game_mode")
+      .order("battle_time", { ascending: false })
+      .range(from, to);
+
+    if (mode) q = q.eq("api_game_mode", mode);
+    if (fromISO) q = q.gte("battle_time", fromISO);
+    if (toISO) q = q.lte("battle_time", toISO);
+
+    return q;
+  });
 
   let filtered = (battles || []).map(x => x.battle_id);
   
   // If zone/team filters are active, filter by player participation
-  if (zoneId && filtered.length > 0) {
-    // Build query to get player assignments in the selected zone (and optionally team)
-    let assignmentQuery = supabase
-      .from('season_zone_team_player')
-      .select('player_id, start_date, end_date')
-      .eq('zone_id', zoneId);
-    
-    if (teamId) {
-      assignmentQuery = assignmentQuery.eq('team_id', teamId);
-    }
-    
-    const { data: assignments, error: e1 } = await assignmentQuery;
-    
-    if (e1 || !assignments || assignments.length === 0) {
+  if ((zoneId || teamId) && filtered.length > 0) {
+    const assignments = await fetchScopedAssignments({
+      seasonId,
+      zoneId,
+      teamId,
+      selectFields: 'player_id, start_date, end_date',
+    });
+
+    if (!assignments.length) {
       return [];
     }
     
@@ -447,14 +495,14 @@ async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId }) {
     
     for (let i = 0; i < playerIds.length; i += batchSize) {
       const batchPlayerIds = playerIds.slice(i, i + batchSize);
-      
-      const { data: brp, error: e2 } = await supabase
-        .from('battle_round_player')
-        .select('battle_round_id')
-        .in('player_id', batchPlayerIds)
-        .limit(5000);
-      
-      if (e2) throw e2;
+
+      const brp = await fetchAllRowsPaged((from, to) => {
+        return supabase
+          .from('battle_round_player')
+          .select('battle_round_id')
+          .in('player_id', batchPlayerIds)
+          .range(from, to);
+      });
       
       (brp || []).forEach(r => allRoundIds.add(r.battle_round_id));
     }
@@ -485,18 +533,16 @@ async function fetchAllBattles({ fromISO, toISO, mode, zoneId, teamId }) {
   return filtered;
 }
 
-async function fetchBattleIdsByPlayer(playerId, { fromISO, toISO, mode, zoneId, teamId }) {
+async function fetchBattleIdsByPlayer(playerId, { fromISO, toISO, mode, zoneId, teamId, seasonId }) {
   // 1) buscamos batallas donde participó playerId
   // battle_round_player -> battle_round -> battle_id
-  let q = supabase
-    .from("battle_round_player")
-    .select("battle_round_id, player_id")
-    .eq("player_id", playerId)
-    .limit(5000);
-
-  // No podemos filtrar por battle_time acá sin join embebido, así que filtramos luego con battle.
-  const { data, error } = await q;
-  if (error) throw error;
+  const data = await fetchAllRowsPaged((from, to) => {
+    return supabase
+      .from("battle_round_player")
+      .select("battle_round_id, player_id")
+      .eq("player_id", playerId)
+      .range(from, to);
+  });
 
   const roundIds = (data || []).map(x => x.battle_round_id).filter(Boolean);
   if (!roundIds.length) return [];
@@ -528,21 +574,16 @@ async function fetchBattleIdsByPlayer(playerId, { fromISO, toISO, mode, zoneId, 
   let filtered = (b || []).map(x => x.battle_id);
   
   // 4) If zone filter is set, check if player was in that zone (and optionally team) during battle time
-  if (zoneId && filtered.length > 0) {
-    // Build query to get player's assignment periods
-    let assignmentQuery = supabase
-      .from('season_zone_team_player')
-      .select('start_date, end_date')
-      .eq('player_id', playerId)
-      .eq('zone_id', zoneId);
-    
-    if (teamId) {
-      assignmentQuery = assignmentQuery.eq('team_id', teamId);
-    }
-    
-    const { data: assignments, error: e4 } = await assignmentQuery;
-    
-    if (e4 || !assignments || assignments.length === 0) {
+  if ((zoneId || teamId) && filtered.length > 0) {
+    const assignments = await fetchScopedAssignments({
+      seasonId,
+      zoneId,
+      teamId,
+      playerId,
+      selectFields: 'start_date, end_date',
+    });
+
+    if (!assignments.length) {
       return []; // Player was never in this zone/team
     }
     
@@ -682,6 +723,7 @@ export default function BattlesHistory() {
   const extremeFilter = searchParams.get("extremeFilter") || "all";
   const resFilter = searchParams.get("resFilter") || "all";
   const seasonFilterId = searchParams.get("seasonId") || "";
+  const selectedSeasonId = seasonFilterId || activeSeason?.season_id || "";
 
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -762,16 +804,6 @@ export default function BattlesHistory() {
             )
             .subscribe();
           
-          // Load zones for active season
-          const { data: zonesData, error: zonesError } = await supabase
-            .from('season_zone')
-            .select('zone_id, name, zone_order')
-            .eq('season_id', latestSeason.season_id)
-            .order('zone_order');
-          
-          if (!zonesError && zonesData && zonesData.length > 0) {
-            setZones(zonesData);
-          }
         }
       } catch (e) {
         console.error(e);
@@ -785,66 +817,107 @@ export default function BattlesHistory() {
       }
     };
   }, []);
-  
-  // Load teams when zone changes
+
+  // Load zones for selected season
   useEffect(() => {
     (async () => {
-      if (!zoneId) {
+      if (!selectedSeasonId) {
+        setZones([]);
+        return;
+      }
+
+      const { data: zonesData, error: zonesError } = await supabase
+        .from('season_zone')
+        .select('zone_id, name, zone_order')
+        .eq('season_id', selectedSeasonId)
+        .order('zone_order');
+
+      if (zonesError) {
+        setZones([]);
+        return;
+      }
+
+      const nextZones = zonesData || [];
+      setZones(nextZones);
+
+      if (zoneId && !nextZones.some(z => z.zone_id === zoneId)) {
+        const next = new URLSearchParams(searchParams);
+        next.delete('zoneId');
+        next.delete('teamId');
+        next.delete('playerId');
+        setSearchParams(next, { replace: true });
+      }
+    })();
+  }, [selectedSeasonId, zoneId, searchParams, setSearchParams]);
+  
+  // Load teams for the selected season and optional zone scope
+  useEffect(() => {
+    (async () => {
+      if (!selectedSeasonId) {
         setTeams([]);
         return;
       }
-      
+
       try {
-        console.log('Loading teams for zone:', zoneId);
-        
-        // Get teams in this zone
-        const { data: zoneTeams, error: e1 } = await supabase
+        let teamScopeQuery = supabase
           .from('season_zone_team')
-          .select('team_id, team_order')
-          .eq('zone_id', zoneId)
+          .select('team_id, team_order, zone_id, season_zone!inner(season_id)')
+          .eq('season_zone.season_id', selectedSeasonId)
           .order('team_order');
-        
-        console.log('Zone teams result:', { zoneTeams, error: e1 });
-        
+
+        if (zoneId) {
+          teamScopeQuery = teamScopeQuery.eq('zone_id', zoneId);
+        }
+
+        const { data: scopedTeams, error: e1 } = await teamScopeQuery;
+
         if (e1) {
-          console.error('Error loading zone teams:', e1);
           setTeams([]);
           return;
         }
-        
-        if (!zoneTeams || zoneTeams.length === 0) {
-          console.log('No teams found for this zone');
+
+        if (!scopedTeams || scopedTeams.length === 0) {
           setTeams([]);
           return;
         }
-        
-        const teamIds = zoneTeams.map(t => t.team_id);
-        console.log('Team IDs:', teamIds);
-        
-        // Get team details
+
+        const scopedTeamMap = new Map();
+        scopedTeams.forEach((team) => {
+          if (!team?.team_id || scopedTeamMap.has(team.team_id)) {
+            return;
+          }
+          scopedTeamMap.set(team.team_id, team);
+        });
+
+        const teamIds = [...scopedTeamMap.keys()];
         const { data: teamDetails, error: e2 } = await supabase
           .from('team')
           .select('team_id, name')
           .in('team_id', teamIds);
-        
-        console.log('Team details result:', { teamDetails, error: e2 });
-        
+
         if (e2) {
-          console.error('Error loading team details:', e2);
           setTeams([]);
           return;
         }
-        
+
         if (teamDetails) {
-          console.log('Setting teams:', teamDetails);
-          setTeams(teamDetails);
+          const sortedTeams = teamDetails.slice().sort((left, right) => {
+            const leftScope = scopedTeamMap.get(left.team_id);
+            const rightScope = scopedTeamMap.get(right.team_id);
+            const leftOrder = Number(leftScope?.team_order ?? Number.MAX_SAFE_INTEGER);
+            const rightOrder = Number(rightScope?.team_order ?? Number.MAX_SAFE_INTEGER);
+            if (leftOrder !== rightOrder) {
+              return leftOrder - rightOrder;
+            }
+            return (left.name || '').localeCompare(right.name || '');
+          });
+          setTeams(sortedTeams);
         }
       } catch (e) {
-        console.error('Exception loading teams:', e);
         setTeams([]);
       }
     })();
-  }, [zoneId]);
+  }, [selectedSeasonId, zoneId]);
 
   // Default season filter to current (latest) season
   useEffect(() => {
@@ -866,67 +939,68 @@ export default function BattlesHistory() {
     setSearchParams(next, { replace: true });
   }, [activeSeason?.season_id, searchParams, setSearchParams]);
 
-  // Load players when zone changes - filter by zone team player assignments
+  // Load players for the selected season and optional zone/team scope
   useEffect(() => {
     (async () => {
-      if (!zoneId) {
+      if (!selectedSeasonId) {
         setZoneTeamPlayers([]);
         return;
       }
-      
+
       try {
-        console.log('Loading players for zone:', zoneId);
-        
-        // Get player assignments for this zone
-        // Filter by active assignments (start_date <= today, end_date >= today or null)
-        const today = new Date().toISOString().split('T')[0];
-        
-        let query = supabase
-          .from('season_zone_team_player')
-          .select('player_id, start_date, end_date')
-          .eq('zone_id', zoneId);
-        
-        // Filter for active assignments
-        query = query.or(`end_date.is.null,end_date.gte.${today}`);
-        query = query.lte('start_date', today);
-        
-        const { data: assignments, error } = await query;
-        
-        console.log('Zone player assignments result:', { assignments, error });
-        
-        if (error) {
-          console.error('Error loading zone players:', error);
-          setZoneTeamPlayers([]);
-          return;
-        }
-        
+        const assignments = await fetchScopedAssignments({
+          seasonId: selectedSeasonId,
+          zoneId,
+          teamId,
+          selectFields: 'player_id',
+        });
+
         if (!assignments || assignments.length === 0) {
-          console.log('No players found for this zone');
           setZoneTeamPlayers([]);
           return;
         }
-        
+
         // Extract unique player IDs
         const playerIds = [...new Set(assignments.map(a => a.player_id).filter(Boolean))];
-        console.log('Zone player IDs:', playerIds);
-        
         setZoneTeamPlayers(playerIds);
       } catch (e) {
-        console.error('Exception loading zone players:', e);
         setZoneTeamPlayers([]);
       }
     })();
-  }, [zoneId]);
+  }, [zoneId, teamId, selectedSeasonId]);
 
-  // Filter players based on selected zone
+  // Filter players based on selected season / zone / team scope
   const filteredPlayers = useMemo(() => {
-    if (!zoneId || zoneTeamPlayers.length === 0) {
-      // No zone selected or no players in zone: show all players
+    if (!selectedSeasonId) {
       return players;
     }
-    // Zone selected: show only players in that zone
+    if (zoneTeamPlayers.length === 0) {
+      return [];
+    }
     return players.filter(p => zoneTeamPlayers.includes(p.player_id));
-  }, [players, zoneId, zoneTeamPlayers]);
+  }, [players, selectedSeasonId, zoneTeamPlayers]);
+
+  useEffect(() => {
+    if (!teamId) return;
+    const stillValid = teams.some((team) => team.team_id === teamId);
+    if (stillValid) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('teamId');
+    next.delete('playerId');
+    setSearchParams(next, { replace: true });
+  }, [teamId, teams, searchParams, setSearchParams]);
+
+  // Keep player filter valid for current season/zone/team scope
+  useEffect(() => {
+    if (!playerId) return;
+    const stillValid = filteredPlayers.some((p) => p.player_id === playerId);
+    if (stillValid) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('playerId');
+    setSearchParams(next, { replace: true });
+  }, [playerId, filteredPlayers, searchParams, setSearchParams]);
 
   // cuando cambian filtros, recalculamos battleIds y reseteamos paginado
   useEffect(() => {
@@ -940,12 +1014,12 @@ export default function BattlesHistory() {
         const { start, end } = sameDayRange(from, to);
         let ids = playerId 
           ? await withTimeout(
-              fetchBattleIdsByPlayer(playerId, { fromISO: start, toISO: end, mode, zoneId, teamId }),
+              fetchBattleIdsByPlayer(playerId, { fromISO: start, toISO: end, mode, zoneId, teamId, seasonId: selectedSeasonId }),
               QUERY_TIMEOUT_MS,
               "fetchBattleIdsByPlayer timeout",
             )
           : await withTimeout(
-              fetchAllBattles({ fromISO: start, toISO: end, mode, zoneId, teamId }),
+              fetchAllBattles({ fromISO: start, toISO: end, mode, zoneId, teamId, seasonId: selectedSeasonId }),
               QUERY_TIMEOUT_MS,
               "fetchAllBattles timeout",
             );
@@ -1101,7 +1175,7 @@ export default function BattlesHistory() {
         setLoading(false);
       }
     })();
-  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter, resFilter, seasonFilterId, seasonsCatalog, seasonExtremeConfigMap]);
+  }, [playerId, mode, from, to, zoneId, teamId, extremeFilter, resFilter, seasonFilterId, selectedSeasonId, seasonsCatalog, seasonExtremeConfigMap]);
 
   // carga de detalles por página
   useEffect(() => {
@@ -1288,6 +1362,22 @@ export default function BattlesHistory() {
     const next = new URLSearchParams(searchParams);
     if (!val) next.delete(key);
     else next.set(key, val);
+
+    if (key === 'seasonId') {
+      next.delete('zoneId');
+      next.delete('teamId');
+      next.delete('playerId');
+    }
+
+    if (key === 'zoneId') {
+      next.delete('teamId');
+      next.delete('playerId');
+    }
+
+    if (key === 'teamId') {
+      next.delete('playerId');
+    }
+
     setSearchParams(next, { replace: true });
   };
 
@@ -1350,7 +1440,7 @@ export default function BattlesHistory() {
               <select
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 value={seasonFilterId}
-                onChange={(e) => onFilter("seasonId", e.target.value)}
+                onChange={(e) => onFilter('seasonId', e.target.value)}
               >
                 <option value="">Todas</option>
                 {seasonsCatalog.map((season) => (
@@ -1363,14 +1453,23 @@ export default function BattlesHistory() {
 
             <div>
               <label className="mb-1 block text-xs font-medium text-white/70">
-                Jugador{zoneId && zoneTeamPlayers.length > 0 ? ` (${filteredPlayers.length} en zona)` : ''}
+                Jugador
+                {teamId ? ` (${filteredPlayers.length} en equipo)` : zoneId ? ` (${filteredPlayers.length} en zona)` : selectedSeasonId ? ` (${filteredPlayers.length} en temporada)` : ''}
               </label>
               <select
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 value={playerId}
                 onChange={(e) => onFilter("playerId", e.target.value)}
               >
-                <option value="">{zoneId && filteredPlayers.length === 0 ? 'Sin jugadores en esta zona' : 'Todos los jugadores'}</option>
+                <option value="">
+                  {filteredPlayers.length === 0 && selectedSeasonId
+                    ? teamId
+                      ? 'Sin jugadores en este equipo'
+                      : zoneId
+                        ? 'Sin jugadores en esta zona'
+                        : 'Sin jugadores en esta temporada'
+                    : 'Todos los jugadores'}
+                </option>
                 {filteredPlayers.map((p) => (
                   <option key={p.player_id} value={p.player_id}>
                     {(p.nick || p.name) ?? p.player_id}
@@ -1426,17 +1525,7 @@ export default function BattlesHistory() {
               <select
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 value={zoneId}
-                onChange={(e) => {
-                  const next = new URLSearchParams(searchParams);
-                  if (!e.target.value) {
-                    next.delete("zoneId");
-                    next.delete("teamId");
-                  } else {
-                    next.set("zoneId", e.target.value);
-                    next.delete("teamId"); // Reset team when zone changes
-                  }
-                  setSearchParams(next, { replace: true });
-                }}
+                onChange={(e) => onFilter('zoneId', e.target.value)}
               >
                 <option value="">Todas las zonas</option>
                 {zones.map((z) => (
@@ -1451,7 +1540,7 @@ export default function BattlesHistory() {
                 className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 value={teamId}
                 onChange={(e) => onFilter("teamId", e.target.value)}
-                disabled={!zoneId}
+                disabled={!selectedSeasonId}
               >
                 <option value="">Todos los equipos</option>
                 {teams.map((t) => (
