@@ -26,6 +26,11 @@ function daysUntil(isoDate) {
   return Math.ceil(diff / 86_400_000)
 }
 
+function hasStarted(isoDate) {
+  if (!isoDate) return false
+  return new Date(isoDate).getTime() <= Date.now()
+}
+
 // ── useDashboard hook ─────────────────────────────────────────────────────────
 function useDashboard(playerId) {
   const [profile, setProfile] = useState(null)
@@ -35,7 +40,15 @@ function useDashboard(playerId) {
   const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
-    if (!playerId) return
+    if (!playerId) {
+      setProfile(null)
+      setStats(null)
+      setPendingMatches([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -108,6 +121,7 @@ function SeasonContext({ profile, stats }) {
   const battlesPlayed = (stats?.wins ?? 0) + (stats?.losses ?? 0)
   const progressPct = Math.min((battlesPlayed / TOTAL_BATTLES) * 100, 100)
   const daysLeft = daysUntil(profile.ladderStartDate)
+  const duelsStarted = hasStarted(profile.duelStartDate)
 
   return (
     <section className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 space-y-2.5">
@@ -124,8 +138,8 @@ function SeasonContext({ profile, stats }) {
       {/* RF-DASH-03 */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Progreso Temporada · {battlesPlayed}/{TOTAL_BATTLES}</span>
-          {daysLeft !== null && (
+          <span>Progreso Duelos · {battlesPlayed}/{TOTAL_BATTLES}</span>
+          {duelsStarted && daysLeft !== null && (
             <span className={daysLeft <= 3 ? 'text-orange-400 font-medium' : ''}>
               {daysLeft === 0
                 ? 'Fase de duelos finalizada'
@@ -215,6 +229,19 @@ function NoSeasonMessage() {
   )
 }
 
+function SelectPlayerMessage() {
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-16 space-y-3">
+      <span className="text-4xl">👁️</span>
+      <p className="text-slate-200 font-semibold">Selecciona un jugador para continuar</p>
+      <p className="text-slate-400 text-sm max-w-sm">
+        Tu sesión está autenticada, pero este dashboard necesita un jugador activo. Usa el botón
+        Ver como para abrir la vista de un jugador.
+      </p>
+    </div>
+  )
+}
+
 function ErrorState({ onRetry }) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-16 space-y-4">
@@ -283,8 +310,9 @@ function LoadingSkeleton() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DashboardJugador() {
-  const { effectivePlayerId } = usePlayerAuth()
+  const { effectivePlayerId, isSuperAdmin, isImpersonating } = usePlayerAuth()
   const { profile, stats, pendingMatches, loading, error, retry } = useDashboard(effectivePlayerId)
+  const needsPlayerSelection = isSuperAdmin && !isImpersonating && !effectivePlayerId
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
@@ -293,7 +321,9 @@ export default function DashboardJugador() {
 
         {!loading && error && <ErrorState onRetry={retry} />}
 
-        {!loading && !error && (
+        {!loading && !error && needsPlayerSelection && <SelectPlayerMessage />}
+
+        {!loading && !error && !needsPlayerSelection && (
           <>
             <Header name={profile?.name ?? profile?.nick ?? 'Jugador'} />
 
