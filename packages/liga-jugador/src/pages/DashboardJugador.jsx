@@ -16,7 +16,7 @@ import {
 } from '../services/dashboardService.js'
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const TOTAL_BATTLES = 20
+const DEFAULT_TOTAL_BATTLES = 16
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function daysUntil(isoDate) {
@@ -24,6 +24,59 @@ function daysUntil(isoDate) {
   const diff = new Date(isoDate).getTime() - Date.now()
   if (diff <= 0) return 0
   return Math.ceil(diff / 86_400_000)
+}
+
+function endOfDayIso(isoDate) {
+  if (!isoDate) return null
+  const value = String(isoDate)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return `${value}T23:59:59.999`
+  }
+  return value
+}
+
+function toDayKey(isoDate) {
+  if (!isoDate) return null
+  const value = String(isoDate)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function diffDaysInclusive(startDayKey, endDayKey) {
+  const [sy, sm, sd] = startDayKey.split('-').map(Number)
+  const [ey, em, ed] = endDayKey.split('-').map(Number)
+  const startUtc = Date.UTC(sy, sm - 1, sd)
+  const endUtc = Date.UTC(ey, em - 1, ed)
+  const diffMs = endUtc - startUtc
+  if (diffMs < 0) {
+    return null
+  }
+  return Math.floor(diffMs / 86_400_000) + 1
+}
+
+function calculateTotalBattles(profile) {
+  const startDayKey = toDayKey(profile?.duelStartDate)
+  const endDayKey = toDayKey(profile?.duelEndDate)
+
+  if (!startDayKey || !endDayKey) {
+    return DEFAULT_TOTAL_BATTLES
+  }
+
+  const totalDays = diffDaysInclusive(startDayKey, endDayKey)
+  if (!totalDays) {
+    return DEFAULT_TOTAL_BATTLES
+  }
+
+  return Math.max(totalDays, 1)
 }
 
 function hasStarted(isoDate) {
@@ -118,16 +171,19 @@ function Header({ name }) {
 }
 
 function SeasonContext({ profile, stats }) {
+  const totalBattles = calculateTotalBattles(profile)
   const battlesPlayed = (stats?.wins ?? 0) + (stats?.losses ?? 0)
-  const progressPct = Math.min((battlesPlayed / TOTAL_BATTLES) * 100, 100)
+  const progressPct = Math.min((battlesPlayed / totalBattles) * 100, 100)
   const duelsStarted = hasStarted(profile.duelStartDate)
-  const duelsFinished = battlesPlayed >= TOTAL_BATTLES
+  const duelsFinished = battlesPlayed >= totalBattles
 
   // Days remaining until duels start (only relevant if duels haven't started)
   const daysUntilDuelStart = duelsStarted ? null : daysUntil(profile.duelStartDate)
 
-  // Days remaining in the duel phase (only relevant if duels have started and not finished)
-  const daysLeftInPhase = duelsStarted && !duelsFinished ? daysUntil(profile.ladderStartDate) : null
+  // Days remaining in the duel phase (use duelEndDate and treat date-only values as end-of-day)
+  const daysLeftInPhase = duelsStarted && !duelsFinished
+    ? daysUntil(endOfDayIso(profile.duelEndDate))
+    : null
 
   return (
     <section className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 space-y-2.5">
@@ -144,7 +200,7 @@ function SeasonContext({ profile, stats }) {
       {/* RF-DASH-03 */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Progreso Duelos · {battlesPlayed}/{TOTAL_BATTLES}</span>
+          <span>Progreso Duelos · {battlesPlayed}/{totalBattles}</span>
 
           {/* Case 1: Duels haven't started yet */}
           {!duelsStarted && daysUntilDuelStart !== null && (
@@ -158,7 +214,7 @@ function SeasonContext({ profile, stats }) {
           {/* Case 2: Duels in progress and not finished */}
           {duelsStarted && !duelsFinished && daysLeftInPhase !== null && (
             <span className={daysLeftInPhase <= 3 ? 'text-orange-400 font-medium' : ''}>
-              {daysLeftInPhase === 0
+              {daysLeftInPhase <= 1
                 ? 'Últimas 24 horas'
                 : `${daysLeftInPhase} día${daysLeftInPhase === 1 ? '' : 's'} restantes`}
             </span>
