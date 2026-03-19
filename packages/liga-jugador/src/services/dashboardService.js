@@ -133,6 +133,32 @@ const E2E_DASHBOARD_FIXTURES = {
     },
     pendingMatches: [],
   },
+  duelsCompleted: {
+    profile: {
+      playerId: 'e2e-player',
+      name: 'Jugador Test',
+      nick: 'JT',
+      league: 'A',
+      teamId: 'team-1',
+      teamName: 'Berserk',
+      teamLogo: null,
+      zoneId: 'zone-1',
+      zoneName: 'Zona 1',
+      seasonId: 'season-1',
+      seasonName: 'Temporada 1',
+      duelStartDate: '2026-03-01T00:00:00.000Z',
+      ladderStartDate: '2026-03-25T00:00:00.000Z',
+    },
+    stats: {
+      position: 1,
+      wins: 20,
+      losses: 0,
+      winRate: 100,
+      pointsTotal: 60,
+      deltaPosition: 5,
+    },
+    pendingMatches: [],
+  },
 }
 
 function getE2EDashboardScenario() {

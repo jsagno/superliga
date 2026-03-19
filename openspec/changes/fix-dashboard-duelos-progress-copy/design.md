@@ -15,16 +15,18 @@ El bloque de progreso de dashboard muestra un texto temporal basado en fechas. A
 
 ## Design Decisions
 
-1. **Fuente de verdad de inicio de duelos**
-- Usar `profile.duelStartDate` ya disponible en el payload de dashboard.
-- Determinar inicio con comparación de fecha actual contra `duelStartDate`.
+1. **Fuente de verdad de inicio y fin de duelos**
+- Usar `profile.duelStartDate` para determinar el inicio (cuando mostrar leyenda de "comienza en X")
+- Usar `profile.ladderStartDate` para determinar el fin (cuando mostrar leyenda de "X restantes")
+- Usar `battlesPlayed >= TOTAL_BATTLES` para determinar completitud
 
-2. **Regla de render de leyenda temporal**
-- Mostrar la leyenda temporal solo cuando `duelStartDate` ya inició y existe `daysLeft`.
-- Si no inició, no renderizar el elemento de días restantes.
+2. **Regla de render de leyenda temporal — tres estados**
+- **Antes de inicio:** Si `duelStartDate` es futura, mostrar "Fase de duelos comienza en X días"
+- **Durante fase:** Si `duelStartDate` pasó pero no completó 20 batallas, mostrar "X días restantes"
+- **Fase completada:** Si se jugaron 20 batallas, mostrar "Fase de duelos finalizada"
 
 3. **Copy del bloque de progreso**
-- Reemplazar `Progreso Temporada` por `Progreso Duelos`.
+- Reemplazar `Progreso Temporada` por `Progreso Duelos`
 
 ## Risks and Mitigations
 
