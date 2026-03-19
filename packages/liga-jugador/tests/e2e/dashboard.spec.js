@@ -7,13 +7,19 @@
 
 import { test, expect } from '@playwright/test'
 
-async function setE2EAuth(page, { authenticated = false, scenario } = {}) {
+async function setE2EAuth(page, { authenticated = false, scenario, role } = {}) {
   await page.addInitScript(
-    ({ isAuthenticated, dashboardScenario }) => {
+    ({ isAuthenticated, dashboardScenario, authRole }) => {
       if (isAuthenticated) {
         window.localStorage.setItem('ligaJugador:e2eAuth', 'authenticated')
       } else {
         window.localStorage.removeItem('ligaJugador:e2eAuth')
+      }
+
+      if (authRole) {
+        window.localStorage.setItem('ligaJugador:e2eRole', authRole)
+      } else {
+        window.localStorage.removeItem('ligaJugador:e2eRole')
       }
 
       if (dashboardScenario) {
@@ -22,7 +28,11 @@ async function setE2EAuth(page, { authenticated = false, scenario } = {}) {
         window.localStorage.removeItem('ligaJugador:e2eDashboardScenario')
       }
     },
-    { isAuthenticated: authenticated, dashboardScenario: scenario ?? null },
+    {
+      isAuthenticated: authenticated,
+      dashboardScenario: scenario ?? null,
+      authRole: role ?? null,
+    },
   )
 }
 
@@ -76,9 +86,20 @@ test.describe('Dashboard — authenticated bypass scenarios', () => {
     await expect(page).toHaveURL(/\/dashboard/)
     await expect(page.getByRole('heading', { name: /Bienvenido, Jugador Test/i })).toBeVisible()
     await expect(page.getByText(/Zona 1 · Liga A/i)).toBeVisible()
+    await expect(page.getByText(/Progreso Duelos · 10\/20/i)).toBeVisible()
     await expect(page.getByText('Victorias')).toBeVisible()
     await expect(page.getByText('Rival Uno')).toBeVisible()
     await expect(page.getByRole('link', { name: /Ver todas las batallas/i })).toBeVisible()
+  })
+
+  test('shows duel phase start countdown when duels not started', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, scenario: 'preDuelStart' })
+    await page.goto('/dashboard')
+
+    await expect(page.getByText(/Progreso Duelos · 6\/20/i)).toBeVisible()
+    await expect(page.getByText(/Fase de duelos comienza en/i)).toBeVisible()
+    await expect(page.getByText(/día restante/i)).not.toBeVisible()
+    await expect(page.getByText(/días restantes/i)).not.toBeVisible()
   })
 
   test('shows empty pending state when player has no pending matches', async ({ page }) => {
@@ -109,5 +130,24 @@ test.describe('Dashboard — authenticated bypass scenarios', () => {
 
     await expect(page.getByText('0%')).toBeVisible()
     await expect(page.getByText(/Zona 2 · Liga B/i)).toBeVisible()
+  })
+
+  test('shows "Fase de duelos finalizada" when all 20/20 battles are completed', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, scenario: 'duelsCompleted' })
+    await page.goto('/dashboard')
+
+    await expect(page.getByText(/Progreso Duelos · 20\/20/i)).toBeVisible()
+    await expect(page.getByText(/Fase de duelos finalizada/i)).toBeVisible()
+    await expect(page.getByText(/día restante/i)).not.toBeVisible()
+    await expect(page.getByText(/días restantes/i)).not.toBeVisible()
+  })
+
+  test('shows player selection guidance for authenticated super users without impersonation target', async ({ page }) => {
+    await setE2EAuth(page, { authenticated: true, role: 'SUPER_USER' })
+    await page.goto('/dashboard')
+
+    await expect(page.getByText(/Selecciona un jugador para continuar/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Abrir vista como jugador/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Bienvenido,/i })).not.toBeVisible()
   })
 })
