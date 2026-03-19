@@ -1,3 +1,4 @@
+/* global process */
 import { test, expect } from '@playwright/test';
 import { loginAdmin } from './helpers.js';
 
@@ -193,7 +194,6 @@ test.describe('Zone-based player filtering in Battles History', () => {
     
     // Get available zones
     const zoneValue = await zoneDropdown.locator('option').nth(1).getAttribute('value');
-    const zoneName = await zoneDropdown.locator('option').nth(1).textContent();
     
     if (!zoneValue || zoneValue === '') {
       test.skip(true, 'No zone available');
@@ -267,5 +267,38 @@ test.describe('Zone-based player filtering in Battles History', () => {
       
       console.log(`Selected player ${firstPlayer} in zone ${firstZone}`);
     }
+  });
+
+  test('season + all zones has totals greater or equal than season + specific zone', async ({ page }) => {
+    await loginAdmin(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
+    await page.goto('/admin/battles/history', { waitUntil: 'networkidle' });
+
+    await expect(page.getByRole('heading', { name: /Histórico de Batallas/i })).toBeVisible({ timeout: 10000 });
+
+    const zoneDropdown = page.locator('label:has-text("Zona")').locator('..').locator('select');
+    await expect(zoneDropdown).toBeVisible();
+
+    const zoneOptions = await zoneDropdown.locator('option').allTextContents();
+    const firstZone = zoneOptions.find(z => !z.includes('Todas') && z.trim() !== '');
+    if (!firstZone) {
+      test.skip(true, 'No zone available to compare all-zones vs specific-zone scope');
+      return;
+    }
+
+    // Baseline: all zones
+    await zoneDropdown.selectOption({ index: 0 });
+    await page.waitForTimeout(1500);
+
+    const pagerAllText = await page.locator('text=/Página\\s+\\d+\\s*\\/\\s*\\d+/').first().textContent();
+    const allPages = Number((pagerAllText || '').match(/\/\s*(\d+)/)?.[1] || 0);
+
+    // Refined: one specific zone
+    await zoneDropdown.selectOption({ label: firstZone });
+    await page.waitForTimeout(1500);
+
+    const pagerZoneText = await page.locator('text=/Página\\s+\\d+\\s*\\/\\s*\\d+/').first().textContent();
+    const zonePages = Number((pagerZoneText || '').match(/\/\s*(\d+)/)?.[1] || 0);
+
+    expect(zonePages).toBeLessThanOrEqual(allPages);
   });
 });
