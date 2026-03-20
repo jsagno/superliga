@@ -9,6 +9,6 @@
 ## 2. Verificación y PR
 
 - [x] 2.1 Revisar manualmente que no existen otros call-sites de `has_duel_phase_started_for_battle` en el codebase.
-- [ ] 2.2 Ejecutar el cron en modo debug (`--verbose` o con logging DEBUG) contra la temporada activa y confirmar que batallas pre-season son rechazadas.
-- [ ] 2.3 Crear rama `fix/fix-cron-duel-start-guard`, commitear con mensaje `fix(cron): treat duel_start/end_date as game day boundaries in is_battle_within_duel_phase`.
-- [ ] 2.4 Abrir PR con evidencia de rechazo en logs para batallas fuera del rango de duelos.
+- [x] 2.2 Ejecutar el cron en modo debug (`--verbose` o con logging DEBUG) contra la temporada activa y confirmar que batallas pre-season son rechazadas.
+- [x] 2.3 Crear rama `fix/fix-cron-duel-start-guard`, commitear con mensaje `fix(cron): treat duel_start/end_date as game day boundaries in is_battle_within_duel_phase`.
+- [x] 2.4 Abrir PR con evidencia de rechazo en logs para batallas fuera del rango de duelos.
