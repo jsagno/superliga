@@ -389,6 +389,70 @@ async function fetchActiveSeason() {
   return data ?? null
 }
 
+function extractScheduledMatchResult(row) {
+  if (!row) return null
+  if (Array.isArray(row.result)) return row.result[0] ?? null
+  return row.result ?? null
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+async function fetchLinkedDailyWinLossStats(playerId, seasonId) {
+  const { data, error } = await supabase
+    .from('scheduled_match')
+    .select(`
+      scheduled_match_id,
+      status,
+      scheduled_from,
+      scheduled_to,
+      deadline_at,
+      player_a_id,
+      player_b_id,
+      links:scheduled_match_battle_link!inner (
+        battle_id,
+        battle:battle_id ( battle_time, api_battle_type, api_game_mode )
+      ),
+      result:scheduled_match_result ( points_a, points_b )
+    `)
+    .eq('season_id', seasonId)
+    .eq('type', 'CW_DAILY')
+    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+
+  if (error) throw error
+
+  let wins = 0
+  let losses = 0
+
+  for (const row of data ?? []) {
+    const links = Array.isArray(row.links) ? row.links : []
+    if (links.length === 0) continue
+
+    const result = extractScheduledMatchResult(row)
+    if (!result) continue
+
+    const rawPoints = row.player_a_id === playerId ? result.points_a : result.points_b
+    const points = toFiniteNumber(rawPoints)
+    if (points == null) continue
+
+    const countedAs = points === 4 || points === 3 ? 'WIN' : 'LOSS'
+    if (countedAs === 'WIN') wins += 1
+    else losses += 1
+  }
+
+  return {
+    wins,
+    losses,
+    total: wins + losses,
+  }
+}
+
 /**
  * Fetches the player profile and their active-season context:
  * zone, league, team, and current Clash tag.
@@ -472,17 +536,29 @@ export async function fetchPlayerStats(playerId, seasonId, zoneId, league) {
 
   if (error) throw error
 
-  if (!data) {
-    return { position: null, wins: 0, losses: 0, winRate: 0, pointsTotal: 0, deltaPosition: 0 }
-  }
+  const dailyStats = await fetchLinkedDailyWinLossStats(playerId, seasonId)
+  const hasDailyComputedStats = dailyStats.total > 0
 
-  const total = data.wins + data.losses
-  const winRate = total > 0 ? Math.round((data.wins / total) * 100) : 0
+  const wins = hasDailyComputedStats ? dailyStats.wins : (data?.wins ?? 0)
+  const losses = hasDailyComputedStats ? dailyStats.losses : (data?.losses ?? 0)
+  const total = wins + losses
+  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0
+
+  if (!data) {
+    return {
+      position: null,
+      wins,
+      losses,
+      winRate,
+      pointsTotal: 0,
+      deltaPosition: 0,
+    }
+  }
 
   return {
     position: data.position,
-    wins: data.wins,
-    losses: data.losses,
+    wins,
+    losses,
     winRate,
     pointsTotal: data.points_total,
     deltaPosition: data.delta_position ?? 0,
