@@ -2,6 +2,7 @@
 // SPEC: docs/openspec/changes/liga-jugador/tasks.md — Task 4.1
 
 import { supabase } from '../supabaseClient.js'
+import { fetchPendingMatches } from './scheduledMatchesService.js'
 import {
   getBattleDateKeyWithCutoff,
   getCurrentBattleDateKey,
@@ -574,68 +575,7 @@ export async function fetchPendingMatchesSummary(playerId) {
   const fixture = getE2EDashboardFixture()
   if (fixture) return fixture.pendingMatches
 
-  const activeSeason = await fetchActiveSeason()
-  if (!activeSeason) return []
-
-  const { data, error } = await supabase
-    .from('scheduled_match')
-    .select(`
-      scheduled_match_id,
-      type,
-      stage,
-      deadline_at,
-      scheduled_from,
-      status,
-      player_a_id,
-      player_b_id,
-      competition:competition_id ( name )
-    `)
-    .eq('season_id', activeSeason.season_id)
-    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
-    .eq('status', 'PENDING')
-    .order('deadline_at', { ascending: true, nullsFirst: false })
-    .order('scheduled_from', { ascending: true, nullsFirst: false })
-    .limit(20)
-
-  if (error) throw error
-
-  const matches = await filterOutLinkedDailyPending(data ?? [])
-  const rivalIds = [
-    ...new Set(
-      matches
-        .map((sm) => (sm.player_a_id === playerId ? sm.player_b_id : sm.player_a_id))
-        .filter(Boolean),
-    ),
-  ]
-
-  let playerNameById = new Map()
-  if (rivalIds.length > 0) {
-    const { data: rivals, error: rivalsError } = await supabase
-      .from('player')
-      .select('player_id, name')
-      .in('player_id', rivalIds)
-
-    if (rivalsError) throw rivalsError
-
-    playerNameById = new Map((rivals ?? []).map((player) => [player.player_id, player.name]))
-  }
-
-  const mapped = matches.map((sm) => {
-    const rivalId = sm.player_a_id === playerId ? sm.player_b_id : sm.player_a_id
-
-    return {
-      scheduledMatchId: sm.scheduled_match_id,
-      type: sm.type,
-      deadlineAt: sm.deadline_at,
-      scheduledFrom: sm.scheduled_from,
-      rivalName: rivalId ? playerNameById.get(rivalId) ?? null : null,
-      competitionName: sm.competition?.name ?? null,
-    }
-  })
-
-  const enriched = await enrichDailyRivalsFromLinkedBattles(mapped)
-
-  const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
-  const combined = virtualDaily ? [virtualDaily, ...enriched] : enriched
-  return combined.slice(0, 3)
+  // Reuse the same source/filters as /batallas to keep pending behavior consistent.
+  const rows = await fetchPendingMatches(playerId, 'ALL')
+  return rows.slice(0, 3)
 }

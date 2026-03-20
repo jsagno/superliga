@@ -16,8 +16,25 @@ function normalizeCutoffMinutes(value) {
   return parsed
 }
 
+function normalizeTimestampInput(timestamp) {
+  if (timestamp == null) return null
+  if (timestamp instanceof Date) return timestamp
+  if (typeof timestamp !== 'string') return timestamp
+
+  const raw = timestamp.trim()
+  if (!raw) return null
+
+  // PostgreSQL timestamptz may come as "YYYY-MM-DD HH:mm:ss+00".
+  if (raw.includes(' ') && !raw.includes('T')) {
+    return raw.replace(' ', 'T')
+  }
+
+  return raw
+}
+
 function toShiftedDate(timestamp, tzOffsetMinutes) {
-  const date = new Date(timestamp)
+  const normalized = normalizeTimestampInput(timestamp)
+  const date = new Date(normalized)
   if (Number.isNaN(date.getTime())) return null
   return new Date(date.getTime() + tzOffsetMinutes * 60_000)
 }

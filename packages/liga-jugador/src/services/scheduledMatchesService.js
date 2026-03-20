@@ -10,6 +10,10 @@ const PENDING_SCENARIO_STORAGE_KEY = 'ligaJugador:e2ePendingScenario'
 const DAILY_DUEL_STAGES = ['SW_Duel_1v1', 'CW_Duel_1v1']
 const DAILY_LINKED_STATUSES = new Set(['LINKED', 'CONFIRMED', 'OVERRIDDEN', 'OVERRIDEN'])
 
+function normalizeStatus(value) {
+  return String(value ?? '').trim().toUpperCase()
+}
+
 const FIXTURE_PENDING = [
   {
     scheduledMatchId: 'sm-101',
@@ -45,7 +49,7 @@ const FIXTURE_PENDING = [
 
 function getE2EPendingScenario() {
   if (!E2E_AUTH_BYPASS_ENABLED || typeof window === 'undefined') return null
-  return window.localStorage.getItem(PENDING_SCENARIO_STORAGE_KEY) ?? 'default'
+  return window.localStorage.getItem(PENDING_SCENARIO_STORAGE_KEY) ?? null
 }
 
 function filterByType(rows, filterType) {
@@ -69,7 +73,7 @@ function getFixtureRows(filterType) {
 async function fetchActiveSeasonId() {
   const { data, error } = await supabase
     .from('season')
-    .select('season_id, duel_start_date, duel_end_date')
+    .select('season_id, duel_start_date, duel_end_date, battle_cutoff_minutes, battle_cutoff_tz_offset')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -212,6 +216,25 @@ async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
 
   if (error) throw error
 
+  const allDailyMatchIds = (data ?? []).map((row) => row.scheduled_match_id).filter(Boolean)
+
+  // Extra safety: if any linked daily battle has battle_time in today's battle day,
+  // never inject a virtual pending card even when scheduled windows are inconsistent.
+  if (allDailyMatchIds.length > 0) {
+    const { data: dailyLinks } = await supabase
+      .from('scheduled_match_battle_link')
+      .select('scheduled_match_id, battle:battle_id ( battle_time )')
+      .in('scheduled_match_id', allDailyMatchIds)
+
+    const hasLinkedBattleToday = (dailyLinks ?? []).some((row) => {
+      const battleTime = row?.battle?.battle_time
+      const battleKey = getBattleDateKeyWithCutoff(battleTime, activeSeason)
+      return battleKey === todayKey
+    })
+
+    if (hasLinkedBattleToday) return null
+  }
+
   const nowMs = Date.now()
   const isWithinWindow = (row) => {
     const fromMs = row.scheduled_from ? new Date(row.scheduled_from).getTime() : Number.NaN
@@ -233,10 +256,10 @@ async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
   )
 
   const hasTodayPendingDaily = todayRows.some(
-    (row) => row.status === 'PENDING' && !resolvedDailyIds.has(row.scheduled_match_id),
+    (row) => normalizeStatus(row.status) === 'PENDING' && !resolvedDailyIds.has(row.scheduled_match_id),
   )
   const hasTodayLinkedDaily = todayRows.some(
-    (row) => DAILY_LINKED_STATUSES.has(row.status) || resolvedDailyIds.has(row.scheduled_match_id),
+    (row) => DAILY_LINKED_STATUSES.has(normalizeStatus(row.status)) || resolvedDailyIds.has(row.scheduled_match_id),
   )
 
   if (hasTodayPendingDaily || hasTodayLinkedDaily) return null
