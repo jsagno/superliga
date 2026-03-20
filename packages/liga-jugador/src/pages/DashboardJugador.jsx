@@ -9,6 +9,7 @@ import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import StatsBadge from '../components/StatsBadge.jsx'
 import PendingBattleCard from '../components/PendingBattleCard.jsx'
+import VincularBatallaPanel from '../components/VincularBatallaPanel.jsx'
 import {
   fetchPlayerProfile,
   fetchPlayerStats,
@@ -254,7 +255,7 @@ function StatsGrid({ stats }) {
   )
 }
 
-function PendingBattlesSection({ matches }) {
+function PendingBattlesSection({ matches, onLink }) {
   return (
     <section className="space-y-2 pb-2">
       <div className="flex items-center justify-between">
@@ -280,7 +281,7 @@ function PendingBattlesSection({ matches }) {
         <>
           <div className="space-y-2">
             {matches.map((m) => (
-              <PendingBattleCard key={m.scheduledMatchId} match={m} />
+              <PendingBattleCard key={m.scheduledMatchId} match={m} onLink={onLink} />
             ))}
           </div>
           <Link
@@ -388,9 +389,23 @@ function LoadingSkeleton() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DashboardJugador() {
-  const { effectivePlayerId, isSuperAdmin, isImpersonating } = usePlayerAuth()
+  const { effectivePlayerId, appUserId, isSuperAdmin, isImpersonating } = usePlayerAuth()
   const { profile, stats, pendingMatches, loading, error, retry } = useDashboard(effectivePlayerId)
   const needsPlayerSelection = isSuperAdmin && !isImpersonating && !effectivePlayerId
+  const [selectedMatchForLink, setSelectedMatchForLink] = useState(null)
+
+  const handleOpenLinkPanel = useCallback((match) => {
+    if (!match || match.linkDisabled) return
+    setSelectedMatchForLink(match)
+  }, [])
+
+  const handleCloseLinkPanel = useCallback(() => {
+    setSelectedMatchForLink(null)
+  }, [])
+
+  const handleLinked = useCallback(async () => {
+    await retry()
+  }, [retry])
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
@@ -411,7 +426,7 @@ export default function DashboardJugador() {
               <>
                 <SeasonContext profile={profile} stats={stats} />
                 <StatsGrid stats={stats} />
-                <PendingBattlesSection matches={pendingMatches} />
+                <PendingBattlesSection matches={pendingMatches} onLink={handleOpenLinkPanel} />
               </>
             )}
           </>
@@ -419,6 +434,14 @@ export default function DashboardJugador() {
       </main>
 
       <BottomNav pendingCount={pendingMatches.length} />
+
+      <VincularBatallaPanel
+        open={Boolean(selectedMatchForLink)}
+        onClose={handleCloseLinkPanel}
+        matchContext={selectedMatchForLink}
+        appUserId={appUserId}
+        onLinked={handleLinked}
+      />
     </div>
   )
 }

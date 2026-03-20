@@ -1747,6 +1747,8 @@ async function fetchGroupsForStage(stageId) {
               >
                 <option value="ALL">Todos</option>
                 <option value="PENDING">PENDING</option>
+                <option value="LINKED">LINKED</option>
+                <option value="CONFIRMED">CONFIRMED</option>
                 <option value="OVERRIDDEN">OVERRIDDEN</option>
                 <option value="COMPLETED">COMPLETED</option>
                 <option value="CANCELLED">CANCELLED</option>

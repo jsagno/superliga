@@ -9,19 +9,33 @@ const E2E_UNLINKED_FIXTURES = {
       battleId: 'battle-501',
       result: 'WIN',
       score: '2 - 1',
+      scoreLeft: 2,
+      scoreRight: 1,
+      titleLeft: 'Jugador A',
+      titleRight: 'Rival Uno',
       battleTime: '2026-03-15T16:20:00.000Z',
       relativeTime: 'Hace 23 min',
       typeLabel: 'Duelo Diario',
       rivalName: 'Rival Uno',
+      apiGameMode: 'CW_BATTLE_1V1',
+      apiBattleType: 'riverRaceDuelColosseum',
+      roundCount: 3,
     },
     {
       battleId: 'battle-502',
       result: 'LOSS',
       score: '1 - 2',
+      scoreLeft: 1,
+      scoreRight: 2,
+      titleLeft: 'Jugador A',
+      titleRight: 'Rival Uno',
       battleTime: '2026-03-15T14:00:00.000Z',
       relativeTime: 'Hace 2 horas',
       typeLabel: 'Duelo Diario',
       rivalName: 'Rival Uno',
+      apiGameMode: 'CW_BATTLE_1V1',
+      apiBattleType: 'riverRaceDuelColosseum',
+      roundCount: 3,
     },
   ],
   empty: [],
@@ -43,11 +57,149 @@ function toRelativeTime(isoDate) {
   return `Hace ${days} dia${days === 1 ? '' : 's'}`
 }
 
+async function fetchScheduledMatchContext(scheduledMatchId) {
+  const { data, error } = await supabase
+    .from('scheduled_match')
+    .select(
+      'scheduled_match_id, season_id, competition_id, stage, type, player_a_id, player_b_id, scheduled_from, scheduled_to',
+    )
+    .eq('scheduled_match_id', scheduledMatchId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data ?? null
+}
+
+async function fetchConfiguredGameMode(match) {
+  if (!match?.season_id || !match?.competition_id || !match?.stage) return null
+
+  const { data, error } = await supabase
+    .from('season_competition_config')
+    .select('api_game_mode')
+    .eq('season_id', match.season_id)
+    .eq('competition_id', match.competition_id)
+    .eq('stage', match.stage)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.api_game_mode ?? null
+}
+
+function collectValidBattleIdsByPlayers(rounds, roundPlayers, playerAId, playerBId) {
+  const playerSetByRoundId = new Map()
+  for (const row of roundPlayers ?? []) {
+    if (!playerSetByRoundId.has(row.battle_round_id)) {
+      playerSetByRoundId.set(row.battle_round_id, new Set())
+    }
+    playerSetByRoundId.get(row.battle_round_id).add(row.player_id)
+  }
+
+  const playerSetByBattleId = new Map()
+  for (const round of rounds ?? []) {
+    const roundPlayersSet = playerSetByRoundId.get(round.battle_round_id)
+    if (!roundPlayersSet) continue
+    if (!playerSetByBattleId.has(round.battle_id)) {
+      playerSetByBattleId.set(round.battle_id, new Set())
+    }
+    const battlePlayersSet = playerSetByBattleId.get(round.battle_id)
+    for (const pid of roundPlayersSet) {
+      battlePlayersSet.add(pid)
+    }
+  }
+
+  return new Set(
+    [...playerSetByBattleId.entries()]
+      .filter(([, set]) => set.has(playerAId) && set.has(playerBId))
+      .map(([battleId]) => battleId),
+  )
+}
+
+function buildBattleDisplayData({
+  battle,
+  rounds,
+  roundPlayers,
+  playerAId,
+  playerBId,
+  playerNameById,
+}) {
+  const battleRounds = (rounds ?? []).filter((r) => r.battle_id === battle.battle_id)
+  const roundNos = [...new Set(battleRounds.map((r) => r.round_no))].sort((a, b) => a - b)
+
+  let teamWins = 0
+  let oppWins = 0
+  let teamTotalCrowns = 0
+  let oppTotalCrowns = 0
+
+  for (const roundNo of roundNos) {
+    const roundIds = battleRounds.filter((r) => r.round_no === roundNo).map((r) => r.battle_round_id)
+    const roundPlayerData = (roundPlayers ?? []).filter((rp) => roundIds.includes(rp.battle_round_id))
+
+    const teamData = roundPlayerData.filter((rp) => rp.side === 'TEAM')
+    const oppData = roundPlayerData.filter((rp) => rp.side === 'OPPONENT')
+
+    const teamCrowns = teamData.reduce((sum, rp) => sum + (rp.crowns || 0), 0)
+    const oppCrowns =
+      teamData.reduce((sum, rp) => sum + (rp.opponent_crowns || 0), 0) +
+      oppData.reduce((sum, rp) => sum + (rp.crowns || 0), 0)
+
+    teamTotalCrowns += teamCrowns
+    oppTotalCrowns += oppCrowns
+
+    if (teamCrowns > oppCrowns) teamWins += 1
+    else if (oppCrowns > teamCrowns) oppWins += 1
+  }
+
+  const battlePlayerRows = (roundPlayers ?? []).filter((rp) =>
+    battleRounds.some((br) => br.battle_round_id === rp.battle_round_id),
+  )
+  const teamPlayer = battlePlayerRows.find(
+    (rp) => rp.side === 'TEAM' && (rp.player_id === playerAId || rp.player_id === playerBId),
+  )
+
+  const titleLeft = playerNameById.get(playerAId) ?? 'Jugador A'
+  const titleRight = playerNameById.get(playerBId) ?? 'Jugador B'
+  const useRounds = (battle.round_count ?? 1) > 1
+  const teamScore = useRounds ? teamWins : teamTotalCrowns
+  const oppScore = useRounds ? oppWins : oppTotalCrowns
+
+  let scoreLeft = teamScore
+  let scoreRight = oppScore
+  if (teamPlayer?.player_id !== playerAId) {
+    scoreLeft = oppScore
+    scoreRight = teamScore
+  }
+
+  return {
+    titleLeft,
+    titleRight,
+    scoreLeft,
+    scoreRight,
+    result: scoreLeft > scoreRight ? 'WIN' : scoreLeft < scoreRight ? 'LOSS' : 'DRAW',
+    score: `${scoreLeft} - ${scoreRight}`,
+  }
+}
+
 export async function fetchUnlinkedBattles(matchContext, limit = 10) {
   const scenario = getE2ELinkingScenario()
   if (scenario) {
     const fixture = E2E_UNLINKED_FIXTURES[scenario] ?? E2E_UNLINKED_FIXTURES.default
     return fixture.slice(0, limit)
+  }
+
+  if (!matchContext?.scheduledMatchId) {
+    return []
+  }
+
+  const scheduledMatch = await fetchScheduledMatchContext(matchContext.scheduledMatchId)
+  if (!scheduledMatch?.player_a_id || !scheduledMatch?.player_b_id) {
+    return []
+  }
+
+  const expectedGameMode = await fetchConfiguredGameMode(scheduledMatch)
+  if (scheduledMatch.type === 'CUP_MATCH' && !expectedGameMode) {
+    return []
   }
 
   const { data: links, error: linksError } = await supabase
@@ -58,26 +210,95 @@ export async function fetchUnlinkedBattles(matchContext, limit = 10) {
 
   const linkedIds = new Set((links ?? []).map((row) => row.battle_id))
 
-  const { data: battles, error: battlesError } = await supabase
+  let battlesQuery = supabase
     .from('battle')
-    .select('battle_id, battle_time, api_game_mode')
+    .select('battle_id, battle_time, api_game_mode, api_battle_type, round_count')
     .order('battle_time', { ascending: false })
-    .limit(limit * 3)
+
+  if (expectedGameMode) {
+    battlesQuery = battlesQuery.eq('api_game_mode', expectedGameMode)
+  }
+  if (scheduledMatch.scheduled_from) {
+    battlesQuery = battlesQuery.gte('battle_time', scheduledMatch.scheduled_from)
+  }
+  if (scheduledMatch.scheduled_to) {
+    battlesQuery = battlesQuery.lte('battle_time', scheduledMatch.scheduled_to)
+  }
+
+  const candidatePool = Math.max(limit * 12, 60)
+  const { data: battles, error: battlesError } = await battlesQuery.limit(candidatePool)
 
   if (battlesError) throw battlesError
 
+  const candidateBattleIds = (battles ?? []).map((b) => b.battle_id)
+  if (candidateBattleIds.length === 0) return []
+
+  const { data: rounds, error: roundsError } = await supabase
+    .from('battle_round')
+    .select('battle_round_id, battle_id, round_no')
+    .in('battle_id', candidateBattleIds)
+
+  if (roundsError) throw roundsError
+
+  const candidateRoundIds = (rounds ?? []).map((r) => r.battle_round_id)
+  if (candidateRoundIds.length === 0) return []
+
+  const { data: roundPlayers, error: roundPlayersError } = await supabase
+    .from('battle_round_player')
+    .select('battle_round_id, player_id, side, crowns, opponent_crowns')
+    .in('battle_round_id', candidateRoundIds)
+    .in('player_id', [scheduledMatch.player_a_id, scheduledMatch.player_b_id])
+
+  if (roundPlayersError) throw roundPlayersError
+
+  const { data: playerData, error: playerError } = await supabase
+    .from('player')
+    .select('player_id, name, nick')
+    .in('player_id', [scheduledMatch.player_a_id, scheduledMatch.player_b_id])
+
+  if (playerError) throw playerError
+
+  const playerNameById = new Map(
+    (playerData ?? []).map((p) => [p.player_id, p.nick || p.name || p.player_id]),
+  )
+
+  const validBattleIds = collectValidBattleIdsByPlayers(
+    rounds,
+    roundPlayers,
+    scheduledMatch.player_a_id,
+    scheduledMatch.player_b_id,
+  )
+
   return (battles ?? [])
-    .filter((battle) => !linkedIds.has(battle.battle_id))
+    .filter((battle) => !linkedIds.has(battle.battle_id) && validBattleIds.has(battle.battle_id))
     .slice(0, limit)
-    .map((battle) => ({
-      battleId: battle.battle_id,
-      result: 'WIN',
-      score: '0 - 0',
-      battleTime: battle.battle_time,
-      relativeTime: toRelativeTime(battle.battle_time),
-      typeLabel: matchContext?.type === 'CUP_MATCH' ? 'Copa de Liga' : 'Duelo Diario',
-      rivalName: matchContext?.rivalName ?? 'Rival',
-    }))
+    .map((battle) => {
+      const display = buildBattleDisplayData({
+        battle,
+        rounds,
+        roundPlayers,
+        playerAId: scheduledMatch.player_a_id,
+        playerBId: scheduledMatch.player_b_id,
+        playerNameById,
+      })
+
+      return {
+        battleId: battle.battle_id,
+        result: display.result,
+        score: display.score,
+        scoreLeft: display.scoreLeft,
+        scoreRight: display.scoreRight,
+        titleLeft: display.titleLeft,
+        titleRight: display.titleRight,
+        battleTime: battle.battle_time,
+        relativeTime: toRelativeTime(battle.battle_time),
+        typeLabel: scheduledMatch.type === 'CUP_MATCH' ? 'Copa de Liga' : 'Duelo Diario',
+        rivalName: matchContext?.rivalName ?? 'Rival',
+        apiGameMode: battle.api_game_mode,
+        apiBattleType: battle.api_battle_type,
+        roundCount: battle.round_count,
+      }
+    })
 }
 
 export async function linkBattlesToScheduledMatch(scheduledMatchId, battleIds, appUserId) {
@@ -198,7 +419,7 @@ export async function fetchPlayerBattleHistory(playerId, seasonId, { typeFilter 
     `)
     .eq('season_id', seasonId)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
-    .in('status', ['LINKED', 'CONFIRMED', 'OVERRIDDEN'])
+    .in('status', ['LINKED', 'CONFIRMED', 'OVERRIDDEN', 'OVERRIDEN'])
     .order('updated_at', { ascending: false })
     .range(page * limit, (page + 1) * limit)
 
@@ -282,7 +503,7 @@ export async function fetchPlayerGlobalStats(playerId, seasonId) {
     `)
     .eq('season_id', seasonId)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
-    .in('status', ['LINKED', 'CONFIRMED', 'OVERRIDDEN'])
+    .in('status', ['LINKED', 'CONFIRMED', 'OVERRIDDEN', 'OVERRIDEN'])
 
   if (error) throw error
 

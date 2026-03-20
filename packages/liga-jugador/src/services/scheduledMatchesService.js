@@ -7,6 +7,8 @@ import {
 
 const E2E_AUTH_BYPASS_ENABLED = import.meta.env.VITE_E2E_AUTH_BYPASS === 'true'
 const PENDING_SCENARIO_STORAGE_KEY = 'ligaJugador:e2ePendingScenario'
+const DAILY_DUEL_STAGES = ['SW_Duel_1v1', 'CW_Duel_1v1']
+const DAILY_LINKED_STATUSES = new Set(['LINKED', 'CONFIRMED', 'OVERRIDDEN', 'OVERRIDEN'])
 
 const FIXTURE_PENDING = [
   {
@@ -92,6 +94,106 @@ function buildVirtualDailyPending(todayKey, deadlineAt) {
   }
 }
 
+async function getResolvedDailyMatchIds(matchIds) {
+  if (!matchIds || matchIds.length === 0) return new Set()
+
+  const uniqueIds = [...new Set(matchIds.filter(Boolean))]
+  if (uniqueIds.length === 0) return new Set()
+
+  const [{ data: links, error: linksError }, { data: results, error: resultsError }] = await Promise.all([
+    supabase
+      .from('scheduled_match_battle_link')
+      .select('scheduled_match_id')
+      .in('scheduled_match_id', uniqueIds),
+    supabase
+      .from('scheduled_match_result')
+      .select('scheduled_match_id')
+      .in('scheduled_match_id', uniqueIds),
+  ])
+
+  if (linksError && resultsError) return new Set()
+
+  const resolved = new Set()
+  for (const row of links ?? []) resolved.add(row.scheduled_match_id)
+  for (const row of results ?? []) resolved.add(row.scheduled_match_id)
+  return resolved
+}
+
+async function filterOutLinkedDailyPending(rows) {
+  const dailyRows = rows.filter((row) => row.type === 'CW_DAILY')
+
+  if (dailyRows.length === 0) return rows
+
+  const matchIds = dailyRows.map((row) => row.scheduled_match_id).filter(Boolean)
+  if (matchIds.length === 0) return rows
+
+  const resolvedDailyIds = await getResolvedDailyMatchIds(matchIds)
+  if (resolvedDailyIds.size === 0) return rows
+
+  return rows.filter(
+    (row) => !(row.type === 'CW_DAILY' && resolvedDailyIds.has(row.scheduled_match_id)),
+  )
+}
+
+async function enrichDailyRivalsFromLinkedBattles(rows) {
+  const targetRows = rows.filter((r) => r.type === 'CW_DAILY' && !r.rivalName)
+  if (targetRows.length === 0) return rows
+
+  const matchIds = targetRows.map((r) => r.scheduledMatchId).filter(Boolean)
+  if (matchIds.length === 0) return rows
+
+  const { data: links, error: linksError } = await supabase
+    .from('scheduled_match_battle_link')
+    .select('scheduled_match_id, battle_id')
+    .in('scheduled_match_id', matchIds)
+
+  if (linksError || !links || links.length === 0) return rows
+
+  const battleIds = [...new Set(links.map((l) => l.battle_id).filter(Boolean))]
+  if (battleIds.length === 0) return rows
+
+  const { data: battleRounds, error: roundsError } = await supabase
+    .from('battle_round')
+    .select('battle_round_id, battle_id')
+    .in('battle_id', battleIds)
+
+  if (roundsError || !battleRounds || battleRounds.length === 0) return rows
+
+  const roundIds = battleRounds.map((r) => r.battle_round_id)
+  const { data: roundPlayers, error: playersError } = await supabase
+    .from('battle_round_player')
+    .select('battle_round_id, side, opponent')
+    .in('battle_round_id', roundIds)
+    .eq('side', 'TEAM')
+
+  if (playersError || !roundPlayers || roundPlayers.length === 0) return rows
+
+  const battleOpponentName = new Map()
+  for (const br of battleRounds) {
+    const rp = roundPlayers.find((row) => row.battle_round_id === br.battle_round_id)
+    if (!rp?.opponent) continue
+    const opponentData = Array.isArray(rp.opponent) ? rp.opponent[0] : rp.opponent
+    const opponentName = opponentData?.name || opponentData?.tag || null
+    if (opponentName && !battleOpponentName.has(br.battle_id)) {
+      battleOpponentName.set(br.battle_id, opponentName)
+    }
+  }
+
+  const matchOpponentName = new Map()
+  for (const link of links) {
+    const name = battleOpponentName.get(link.battle_id)
+    if (name && !matchOpponentName.has(link.scheduled_match_id)) {
+      matchOpponentName.set(link.scheduled_match_id, name)
+    }
+  }
+
+  return rows.map((row) => {
+    if (row.rivalName) return row
+    const fromLinked = matchOpponentName.get(row.scheduledMatchId)
+    return fromLinked ? { ...row, rivalName: fromLinked } : row
+  })
+}
+
 async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
   const todayKey = getCurrentBattleDateKey(activeSeason)
   const startKey = getBattleDateKeyWithCutoff(activeSeason.duel_start_date, activeSeason)
@@ -102,19 +204,42 @@ async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
 
   const { data, error } = await supabase
     .from('scheduled_match')
-    .select('scheduled_match_id, scheduled_from')
+    .select('scheduled_match_id, scheduled_from, scheduled_to, deadline_at, status')
     .eq('season_id', activeSeason.season_id)
     .eq('type', 'CW_DAILY')
-    .eq('stage', 'SW_Duel_1v1')
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .limit(100)
 
   if (error) throw error
 
-  const hasTodayDaily = (data ?? []).some(
-    (row) => getBattleDateKeyWithCutoff(row.scheduled_from, activeSeason) === todayKey,
+  const nowMs = Date.now()
+  const isWithinWindow = (row) => {
+    const fromMs = row.scheduled_from ? new Date(row.scheduled_from).getTime() : Number.NaN
+    const toMsRaw = row.scheduled_to ? new Date(row.scheduled_to).getTime() : Number.NaN
+    const deadlineMs = row.deadline_at ? new Date(row.deadline_at).getTime() : Number.NaN
+    const toMs = Number.isFinite(toMsRaw) ? toMsRaw : deadlineMs
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return false
+    return nowMs >= fromMs && nowMs <= toMs
+  }
+
+  const todayRows = (data ?? []).filter((row) => {
+    const fromKey = getBattleDateKeyWithCutoff(row.scheduled_from, activeSeason)
+    const toKey = getBattleDateKeyWithCutoff(row.scheduled_to || row.deadline_at, activeSeason)
+    return fromKey === todayKey || toKey === todayKey || isWithinWindow(row)
+  })
+
+  const resolvedDailyIds = await getResolvedDailyMatchIds(
+    todayRows.map((row) => row.scheduled_match_id),
   )
-  if (hasTodayDaily) return null
+
+  const hasTodayPendingDaily = todayRows.some(
+    (row) => row.status === 'PENDING' && !resolvedDailyIds.has(row.scheduled_match_id),
+  )
+  const hasTodayLinkedDaily = todayRows.some(
+    (row) => DAILY_LINKED_STATUSES.has(row.status) || resolvedDailyIds.has(row.scheduled_match_id),
+  )
+
+  if (hasTodayPendingDaily || hasTodayLinkedDaily) return null
 
   return buildVirtualDailyPending(todayKey, getNextCutoffIso(activeSeason))
 }
@@ -135,6 +260,7 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
     .select(`
       scheduled_match_id,
       type,
+      stage,
       status,
       deadline_at,
       scheduled_from,
@@ -151,7 +277,7 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
 
   if (error) throw error
 
-  const rows = data ?? []
+  const rows = await filterOutLinkedDailyPending(data ?? [])
   const rivalIds = [
     ...new Set(
       rows
@@ -185,7 +311,9 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
     }
   })
 
-  let filtered = filterByType(mapped, filterType)
+  const enriched = await enrichDailyRivalsFromLinkedBattles(mapped)
+
+  let filtered = filterByType(enriched, filterType)
   if (filterType !== 'CUP') {
     const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
     if (virtualDaily) {
@@ -203,15 +331,17 @@ export async function fetchPendingMatchesCount(playerId) {
   const activeSeason = await fetchActiveSeasonId()
   if (!activeSeason?.season_id) return 0
 
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('scheduled_match')
-    .select('scheduled_match_id', { count: 'exact', head: true })
+    .select('scheduled_match_id, type, stage')
     .eq('season_id', activeSeason.season_id)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
 
   if (error) throw error
 
+  const rows = await filterOutLinkedDailyPending(data ?? [])
+
   const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
-  return (count ?? 0) + (virtualDaily ? 1 : 0)
+  return rows.length + (virtualDaily ? 1 : 0)
 }
