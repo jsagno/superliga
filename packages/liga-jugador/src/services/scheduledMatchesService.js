@@ -1,4 +1,9 @@
 import { supabase } from '../supabaseClient.js'
+import {
+  getBattleDateKeyWithCutoff,
+  getCurrentBattleDateKey,
+  getNextCutoffIso,
+} from './duelDayUtils.js'
 
 const E2E_AUTH_BYPASS_ENABLED = import.meta.env.VITE_E2E_AUTH_BYPASS === 'true'
 const PENDING_SCENARIO_STORAGE_KEY = 'ligaJugador:e2ePendingScenario'
@@ -62,14 +67,56 @@ function getFixtureRows(filterType) {
 async function fetchActiveSeasonId() {
   const { data, error } = await supabase
     .from('season')
-    .select('season_id')
+    .select('season_id, duel_start_date, duel_end_date')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (error) throw error
-  return data?.season_id ?? null
+  return data ?? null
+}
+
+function buildVirtualDailyPending(todayKey, deadlineAt) {
+  return {
+    scheduledMatchId: `virtual-cw-daily-${todayKey}`,
+    type: 'CW_DAILY',
+    status: 'PENDING',
+    deadlineAt: deadlineAt || null,
+    scheduledFrom: deadlineAt || null,
+    scheduledTo: deadlineAt || null,
+    rivalName: null,
+    competitionName: 'Duelo Diario',
+    isVirtual: true,
+    linkDisabled: true,
+  }
+}
+
+async function shouldInjectVirtualDailyPending(activeSeason, playerId) {
+  const todayKey = getCurrentBattleDateKey(activeSeason)
+  const startKey = getBattleDateKeyWithCutoff(activeSeason.duel_start_date, activeSeason)
+  const endKey = getBattleDateKeyWithCutoff(activeSeason.duel_end_date, activeSeason)
+
+  if (!startKey || !endKey) return null
+  if (todayKey < startKey || todayKey > endKey) return null
+
+  const { data, error } = await supabase
+    .from('scheduled_match')
+    .select('scheduled_match_id, scheduled_from')
+    .eq('season_id', activeSeason.season_id)
+    .eq('type', 'CW_DAILY')
+    .eq('stage', 'SW_Duel_1v1')
+    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+    .limit(100)
+
+  if (error) throw error
+
+  const hasTodayDaily = (data ?? []).some(
+    (row) => getBattleDateKeyWithCutoff(row.scheduled_from, activeSeason) === todayKey,
+  )
+  if (hasTodayDaily) return null
+
+  return buildVirtualDailyPending(todayKey, getNextCutoffIso(activeSeason))
 }
 
 /**
@@ -80,8 +127,8 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
   const fixtureRows = getFixtureRows(filterType)
   if (fixtureRows) return fixtureRows
 
-  const seasonId = await fetchActiveSeasonId()
-  if (!seasonId) return []
+  const activeSeason = await fetchActiveSeasonId()
+  if (!activeSeason?.season_id) return []
 
   const { data, error } = await supabase
     .from('scheduled_match')
@@ -96,7 +143,7 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
       player_b_id,
       competition:competition_id ( name )
     `)
-    .eq('season_id', seasonId)
+    .eq('season_id', activeSeason.season_id)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
     .order('deadline_at', { ascending: true, nullsFirst: false })
@@ -138,23 +185,33 @@ export async function fetchPendingMatches(playerId, filterType = 'ALL') {
     }
   })
 
-  return filterByType(mapped, filterType)
+  let filtered = filterByType(mapped, filterType)
+  if (filterType !== 'CUP') {
+    const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
+    if (virtualDaily) {
+      filtered = [virtualDaily, ...filtered]
+    }
+  }
+
+  return filtered
 }
 
 export async function fetchPendingMatchesCount(playerId) {
   const fixtureRows = getFixtureRows('ALL')
   if (fixtureRows) return fixtureRows.length
 
-  const seasonId = await fetchActiveSeasonId()
-  if (!seasonId) return 0
+  const activeSeason = await fetchActiveSeasonId()
+  if (!activeSeason?.season_id) return 0
 
   const { count, error } = await supabase
     .from('scheduled_match')
     .select('scheduled_match_id', { count: 'exact', head: true })
-    .eq('season_id', seasonId)
+    .eq('season_id', activeSeason.season_id)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
     .eq('status', 'PENDING')
 
   if (error) throw error
-  return count ?? 0
+
+  const virtualDaily = await shouldInjectVirtualDailyPending(activeSeason, playerId)
+  return (count ?? 0) + (virtualDaily ? 1 : 0)
 }
