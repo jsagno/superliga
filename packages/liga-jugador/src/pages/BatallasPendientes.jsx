@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bell, LayoutGrid, RefreshCw, Swords, Trophy } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
 import PendingBattleCard from '../components/PendingBattleCard.jsx'
+import VincularBatallaPanel from '../components/VincularBatallaPanel.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 import {
   fetchPendingMatches,
@@ -15,12 +16,13 @@ const FILTER_TABS = [
 ]
 
 export default function BatallasPendientes() {
-  const { effectivePlayerId } = usePlayerAuth()
+  const { effectivePlayerId, appUserId } = usePlayerAuth()
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [matches, setMatches] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [selectedMatchForLink, setSelectedMatchForLink] = useState(null)
 
   const load = useCallback(async () => {
     if (!effectivePlayerId) return
@@ -41,6 +43,19 @@ export default function BatallasPendientes() {
       setLoading(false)
     }
   }, [activeFilter, effectivePlayerId])
+
+  const handleOpenLinkPanel = useCallback((match) => {
+    if (!match || match.linkDisabled) return
+    setSelectedMatchForLink(match)
+  }, [])
+
+  const handleCloseLinkPanel = useCallback(() => {
+    setSelectedMatchForLink(null)
+  }, [])
+
+  const handleLinked = useCallback(async () => {
+    await load()
+  }, [load])
 
   useEffect(() => {
     load()
@@ -130,13 +145,21 @@ export default function BatallasPendientes() {
         ) : (
           <div className="space-y-3">
             {matches.map((match) => (
-              <PendingBattleCard key={match.scheduledMatchId} match={match} />
+              <PendingBattleCard key={match.scheduledMatchId} match={match} onLink={handleOpenLinkPanel} />
             ))}
           </div>
         )}
       </main>
 
       <BottomNav pendingCount={pendingCount} />
+
+      <VincularBatallaPanel
+        open={Boolean(selectedMatchForLink)}
+        onClose={handleCloseLinkPanel}
+        matchContext={selectedMatchForLink}
+        appUserId={appUserId}
+        onLinked={handleLinked}
+      />
     </div>
   )
 }

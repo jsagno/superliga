@@ -5,6 +5,13 @@ import BattleDetailModal from './BattleDetailModal.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 
 function ResultBadge({ result }) {
+  if (result === 'DRAW') {
+    return (
+      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-600/30 text-slate-200">
+        Empate
+      </span>
+    )
+  }
   const isWin = result === 'WIN'
   return (
     <span
@@ -20,7 +27,7 @@ function ResultBadge({ result }) {
 
 
 export default function VincularBatallaPanel({ open, onClose, matchContext, appUserId, onLinked }) {
-  const { isImpersonating } = usePlayerAuth()
+  const { isImpersonating, isSuperAdmin } = usePlayerAuth()
   const [rows, setRows] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(false)
@@ -51,6 +58,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
 
   const selectedCount = selectedIds.length
   const totalCount = rows.length
+  const readOnlyImpersonation = isImpersonating && !isSuperAdmin
 
   const canLink = useMemo(() => selectedCount > 0 && !linking, [selectedCount, linking])
 
@@ -61,7 +69,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
   }
 
   async function handleConfirmLink() {
-    if (!canLink || !matchContext || isImpersonating) return
+    if (!canLink || !matchContext || readOnlyImpersonation) return
 
     setLinking(true)
     setError(null)
@@ -121,21 +129,41 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
 
           {!loading && !error && rows.map((battle) => {
             const checked = selectedIds.includes(battle.battleId)
+            const winnerLeft = (battle.scoreLeft ?? 0) > (battle.scoreRight ?? 0)
+            const winnerRight = (battle.scoreRight ?? 0) > (battle.scoreLeft ?? 0)
             return (
-              <div key={battle.battleId} className="rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2.5 flex items-center gap-3">
+              <div key={battle.battleId} className="rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2.5 flex items-start gap-3">
                 <input
                   type="checkbox"
                   aria-label={`Seleccionar batalla ${battle.battleId}`}
                   checked={checked}
                   onChange={() => toggleSelection(battle.battleId)}
-                  className="accent-blue-500"
+                  className="accent-blue-500 mt-1"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <ResultBadge result={battle.result} />
                     <span className="text-xs text-slate-400">{battle.typeLabel}</span>
+                    <span className="text-xs text-slate-500">{battle.apiGameMode || '—'}</span>
                   </div>
-                  <p className="text-sm text-slate-200">{battle.score}</p>
+
+                  <div className="flex items-center justify-between gap-2 text-sm mb-0.5">
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      <span className={winnerLeft ? 'text-emerald-300 font-semibold truncate' : 'text-slate-200 truncate'}>
+                        {battle.titleLeft || 'Jugador A'}
+                      </span>
+                      <span className="text-slate-500">vs</span>
+                      <span className={winnerRight ? 'text-emerald-300 font-semibold truncate' : 'text-slate-200 truncate'}>
+                        {battle.titleRight || 'Jugador B'}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold flex-shrink-0">
+                      <span className={winnerLeft ? 'text-emerald-300' : 'text-slate-200'}>{battle.scoreLeft ?? 0}</span>
+                      <span className="mx-1 text-slate-500">-</span>
+                      <span className={winnerRight ? 'text-emerald-300' : 'text-slate-200'}>{battle.scoreRight ?? 0}</span>
+                    </div>
+                  </div>
+
                   <p className="text-xs text-slate-500">{battle.relativeTime}</p>
                 </div>
                 <button
@@ -153,7 +181,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
 
         <footer className="px-4 py-3 border-t border-slate-800 flex items-center justify-between gap-3 sticky bottom-0 bg-slate-900">
           <p className="text-xs text-slate-400">Seleccionadas: {selectedCount} de {totalCount}</p>
-          {isImpersonating ? (
+          {readOnlyImpersonation ? (
             <p className="text-xs text-amber-400 font-medium">Modo solo lectura — en vista como jugador</p>
           ) : (
             <button
