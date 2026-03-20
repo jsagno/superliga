@@ -29,6 +29,8 @@ import SeasonDailyPoints from "../pages/admin/SeasonDailyPoints.jsx";
 import SeasonRestrictions from "../pages/admin/SeasonRestrictions.jsx";
 import SeasonRestrictionEdit from "../pages/admin/SeasonRestrictionEdit.jsx";
 import ZoneDiscordWebhooks from "../pages/admin/ZoneDiscordWebhooks.jsx";
+import SeasonBonusPoints from "../pages/admin/SeasonBonusPoints.jsx";
+import AdminLeagueStandings from "../pages/admin/AdminLeagueStandings.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin/login" replace /> },
@@ -57,6 +59,8 @@ const router = createBrowserRouter([
       { path: "seasons/:seasonId", element: <SeasonEdit /> },
       { path: "seasons/:seasonId/zones", element: <SeasonZones /> },
       { path: "seasons/:seasonId/zones/:zoneId/rankings", element: <SeasonZoneRankings /> },
+      { path: "seasons/:seasonId/zones/:zoneId/bonus-points", element: <SeasonBonusPoints /> },
+      { path: "seasons/:seasonId/zones/:zoneId/league-standings", element: <AdminLeagueStandings /> },
       { path: "seasons/:seasonId/cup-modes", element: <SeasonCupModes /> },
       { path: "seasons/:seasonId/extreme", element: <SeasonExtreme /> },
       { path: "seasons/:seasonId/assignments", element: <SeasonAssignments /> },

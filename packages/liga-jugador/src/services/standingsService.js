@@ -470,6 +470,7 @@ function normalizeZone(zone) {
     zoneId: zone.zone_id,
     name: zone.name,
     zoneOrder: zone.zone_order ?? 0,
+    lastSnapshotAt: zone.last_snapshot_at ?? null,
   }
 }
 
@@ -517,7 +518,7 @@ export async function fetchSeasonZones(seasonId) {
 
   const { data, error } = await supabase
     .from('season_zone')
-    .select('zone_id, name, zone_order, created_at')
+    .select('zone_id, name, zone_order, created_at, last_snapshot_at')
     .eq('season_id', seasonId)
     .order('zone_order', { ascending: true })
     .order('created_at', { ascending: true })

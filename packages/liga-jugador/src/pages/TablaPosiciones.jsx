@@ -14,6 +14,7 @@ const VIEW_TABS = [
   { key: 'ZONE', label: 'Zonas' },
   { key: 'A', label: 'Liga A' },
   { key: 'B', label: 'Liga B' },
+  { key: 'C', label: 'Liga C' },
 ]
 
 function SeasonSelect({ seasons, selectedSeasonId, onChange }) {
@@ -40,7 +41,7 @@ function SeasonSelect({ seasons, selectedSeasonId, onChange }) {
 
 function ViewTabs({ activeTab, onChange }) {
   return (
-    <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-1">
+    <div className="grid grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-1">
       {VIEW_TABS.map((tab) => {
         const isActive = activeTab === tab.key
         return (
@@ -149,6 +150,18 @@ function EmptyState({ activeTab, selectedZoneName }) {
   )
 }
 
+function formatDateTime(isoStr) {
+  if (!isoStr) return null
+  const d = new Date(isoStr)
+  const local = new Date(d.getTime() - 3 * 60 * 60 * 1000)
+  const dd = String(local.getUTCDate()).padStart(2, '0')
+  const mm = String(local.getUTCMonth() + 1).padStart(2, '0')
+  const yyyy = local.getUTCFullYear()
+  const hh = String(local.getUTCHours()).padStart(2, '0')
+  const min = String(local.getUTCMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${min} (GMT-3)`
+}
+
 export default function TablaPosiciones() {
   const { effectivePlayerId } = usePlayerAuth()
   const [seasons, setSeasons] = useState([])
@@ -157,6 +170,7 @@ export default function TablaPosiciones() {
   const [standings, setStandings] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
   const [activeTab, setActiveTab] = useState('ZONE')
+  const [tabSetByLeague, setTabSetByLeague] = useState(false)
   const [selectedZoneId, setSelectedZoneId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -241,6 +255,16 @@ export default function TablaPosiciones() {
     loadStandings()
   }, [loadStandings])
 
+  // Task 6.2: auto-select league tab for Liga C (and A/B) players on first load
+  useEffect(() => {
+    if (!playerContext || tabSetByLeague) return
+    const league = playerContext.league
+    if (league === 'A' || league === 'B' || league === 'C') {
+      setTabSetByLeague(true)
+      setActiveTab(league)
+    }
+  }, [playerContext, tabSetByLeague])
+
   useEffect(() => {
     if (!currentRowRef.current) return
     currentRowRef.current.scrollIntoView({ block: 'center', behavior: 'auto' })
@@ -255,6 +279,12 @@ export default function TablaPosiciones() {
     if (selectedZoneId === 'ALL') return null
     return zones.find((zone) => zone.zoneId === selectedZoneId)?.name ?? null
   }, [selectedZoneId, zones])
+
+  const lastUpdated = useMemo(() => {
+    if (activeTab === 'ZONE') return null
+    const zoneId = playerContext?.zoneId ?? zones[0]?.zoneId
+    return zones.find((z) => z.zoneId === zoneId)?.lastSnapshotAt ?? null
+  }, [zones, activeTab, playerContext])
 
   return (
     <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
@@ -306,6 +336,11 @@ export default function TablaPosiciones() {
                   : `Liga ${activeTab}`}
               </span>
               <span>{standings.length} jugadores</span>
+              {lastUpdated && (
+                <span className="text-xs text-slate-600 normal-case tracking-normal">
+                  Actualizado: {formatDateTime(lastUpdated)}
+                </span>
+              )}
             </div>
 
             {loading ? (

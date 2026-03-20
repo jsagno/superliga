@@ -56,6 +56,8 @@ export default function SeasonZoneRankings() {
           player_id,
           team_id,
           ranking_seed,
+          league,
+          initial_points,
           player:player!inner (player_id, name, nick),
           team:team (team_id, name, logo)
         `)
@@ -84,17 +86,23 @@ export default function SeasonZoneRankings() {
     setSaving(true);
 
     try {
-      // Update ranking_seed for each player based on current order
+      // Update ranking_seed, league, and initial_points for each player based on current order
       const updates = players.map((player, index) => ({
         season_zone_team_player_id: player.season_zone_team_player_id,
-        ranking_seed: index + 1
+        ranking_seed: index + 1,
+        league: player.league || inferLeague(index + 1),
+        initial_points: player.initial_points ?? 0,
       }));
 
       // Batch update
       for (const update of updates) {
         await supabase
           .from("season_zone_team_player")
-          .update({ ranking_seed: update.ranking_seed })
+          .update({
+            ranking_seed: update.ranking_seed,
+            league: update.league,
+            initial_points: update.initial_points,
+          })
           .eq("season_zone_team_player_id", update.season_zone_team_player_id);
       }
 
@@ -164,6 +172,18 @@ export default function SeasonZoneRankings() {
     }
   }
 
+  function updatePlayerField(playerId, field, value) {
+    setPlayers(prev =>
+      prev.map(p => p.player_id === playerId ? { ...p, [field]: value } : p)
+    );
+  }
+
+  function inferLeague(position) {
+    if (position <= 6) return 'A';
+    if (position <= 12) return 'B';
+    return 'C';
+  }
+
   function handleDrop(e, dropIndex) {
     e.preventDefault();
     
@@ -186,7 +206,13 @@ export default function SeasonZoneRankings() {
     // Insert at new position
     newPlayers.splice(adjustedDropIndex, 0, draggedPlayer);
     
-    setPlayers(newPlayers);
+    // Auto-suggest league based on new position (1-based)
+    const withLeague = newPlayers.map((p, i) => ({
+      ...p,
+      league: inferLeague(i + 1),
+    }));
+
+    setPlayers(withLeague);
   }
 
   function handleDragEnter(e, index) {
@@ -346,6 +372,33 @@ export default function SeasonZoneRankings() {
                   <div className="text-sm text-white/60">
                     {player.team?.name || "Sin equipo"}
                   </div>
+                </div>
+
+                {/* League selector */}
+                <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                  <label className="text-xs text-white/50">Liga</label>
+                  <select
+                    value={player.league || inferLeague(index + 1)}
+                    onChange={e => updatePlayerField(player.player_id, 'league', e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    className="rounded-lg bg-white/10 border border-white/20 px-2 py-1 text-sm font-semibold focus:outline-none focus:border-blue-400"
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </select>
+                </div>
+
+                {/* Initial Points input */}
+                <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                  <label className="text-xs text-white/50">AN</label>
+                  <input
+                    type="number"
+                    value={player.initial_points ?? 0}
+                    onChange={e => updatePlayerField(player.player_id, 'initial_points', parseInt(e.target.value) || 0)}
+                    onClick={e => e.stopPropagation()}
+                    className="w-16 rounded-lg bg-white/10 border border-white/20 px-2 py-1 text-sm text-center font-semibold focus:outline-none focus:border-blue-400"
+                  />
                 </div>
 
                 {/* Current Ranking Badge */}
