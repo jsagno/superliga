@@ -670,6 +670,52 @@ def get_game_day_boundaries(battle_time: datetime, season_config: Dict[str, Any]
     return game_day_start, game_day_end
 
 
+def parse_season_datetime_utc(value: Any) -> Optional[datetime]:
+    """Parse season datetime/date values to UTC-aware datetime."""
+    if not value:
+        return None
+
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+
+        # Handle explicit Z suffix used by ISO timestamps.
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+
+        return parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+    return None
+
+
+def has_duel_phase_started_for_battle(battle_time: datetime, season_config: Dict[str, Any]) -> bool:
+    """
+    Ensure battle belongs to a game day on/after duel_start_date, using the
+    same battle cutoff window (e.g. 09:50 -> 09:50 next day).
+    """
+    duel_start_raw = season_config.get("duel_start_date")
+    duel_start_dt = parse_season_datetime_utc(duel_start_raw)
+    if not duel_start_dt:
+        logging.warning("[DAILY_DUEL] Missing or invalid duel_start_date in active season config; skipping auto-link")
+        return False
+
+    battle_game_day = convert_to_game_day(battle_time, season_config)
+    duel_start_game_day = convert_to_game_day(duel_start_dt, season_config)
+    return battle_game_day >= duel_start_game_day
+
+
 def get_player_zone(sb: Client, player_id: str, season_id: str) -> Optional[str]:
     """Fetch zone_id for player in given season."""
     try:
@@ -983,6 +1029,16 @@ def process_daily_duel_battle(sb: Client, battle_id: str, battle_data: Dict[str,
             battle_time = parse_battle_time(battle_data.get("battle_time", ""))
         except Exception as e:
             logging.error(f"Failed to parse battle time for {battle_id}: {e}")
+            return False
+
+        # Guard: do not link before duel phase start (same cutoff/day-window logic).
+        if not has_duel_phase_started_for_battle(battle_time, season_config):
+            if verbose:
+                logging.info(
+                    "🎮 [DAILY_DUEL] Skipping auto-link before duel start: "
+                    f"battle_id={battle_id}, battle_time={battle_time.isoformat()}, "
+                    f"duel_start_date={season_config.get('duel_start_date')}"
+                )
             return False
         
         # Create match if needed

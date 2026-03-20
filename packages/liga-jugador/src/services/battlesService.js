@@ -127,49 +127,47 @@ function buildBattleDisplayData({
   const battleRounds = (rounds ?? []).filter((r) => r.battle_id === battle.battle_id)
   const roundNos = [...new Set(battleRounds.map((r) => r.round_no))].sort((a, b) => a - b)
 
-  let teamWins = 0
-  let oppWins = 0
-  let teamTotalCrowns = 0
-  let oppTotalCrowns = 0
+  let playerAWins = 0
+  let playerBWins = 0
+  let playerATotalCrowns = 0
+  let playerBTotalCrowns = 0
 
   for (const roundNo of roundNos) {
     const roundIds = battleRounds.filter((r) => r.round_no === roundNo).map((r) => r.battle_round_id)
     const roundPlayerData = (roundPlayers ?? []).filter((rp) => roundIds.includes(rp.battle_round_id))
 
-    const teamData = roundPlayerData.filter((rp) => rp.side === 'TEAM')
-    const oppData = roundPlayerData.filter((rp) => rp.side === 'OPPONENT')
+    const playerARow = roundPlayerData.find((rp) => rp.player_id === playerAId)
+    const playerBRow = roundPlayerData.find((rp) => rp.player_id === playerBId)
 
-    const teamCrowns = teamData.reduce((sum, rp) => sum + (rp.crowns || 0), 0)
-    const oppCrowns =
-      teamData.reduce((sum, rp) => sum + (rp.opponent_crowns || 0), 0) +
-      oppData.reduce((sum, rp) => sum + (rp.crowns || 0), 0)
+    let crownsA = null
+    let crownsB = null
 
-    teamTotalCrowns += teamCrowns
-    oppTotalCrowns += oppCrowns
+    // Prefer explicit A/B rows; fallback to opponent_crowns when only one row exists.
+    if (playerARow && playerBRow) {
+      crownsA = playerARow.crowns ?? 0
+      crownsB = playerBRow.crowns ?? 0
+    } else if (playerARow) {
+      crownsA = playerARow.crowns ?? 0
+      crownsB = playerARow.opponent_crowns ?? 0
+    } else if (playerBRow) {
+      crownsB = playerBRow.crowns ?? 0
+      crownsA = playerBRow.opponent_crowns ?? 0
+    }
 
-    if (teamCrowns > oppCrowns) teamWins += 1
-    else if (oppCrowns > teamCrowns) oppWins += 1
+    if (crownsA == null || crownsB == null) continue
+
+    playerATotalCrowns += crownsA
+    playerBTotalCrowns += crownsB
+
+    if (crownsA > crownsB) playerAWins += 1
+    else if (crownsB > crownsA) playerBWins += 1
   }
-
-  const battlePlayerRows = (roundPlayers ?? []).filter((rp) =>
-    battleRounds.some((br) => br.battle_round_id === rp.battle_round_id),
-  )
-  const teamPlayer = battlePlayerRows.find(
-    (rp) => rp.side === 'TEAM' && (rp.player_id === playerAId || rp.player_id === playerBId),
-  )
 
   const titleLeft = playerNameById.get(playerAId) ?? 'Jugador A'
   const titleRight = playerNameById.get(playerBId) ?? 'Jugador B'
   const useRounds = (battle.round_count ?? 1) > 1
-  const teamScore = useRounds ? teamWins : teamTotalCrowns
-  const oppScore = useRounds ? oppWins : oppTotalCrowns
-
-  let scoreLeft = teamScore
-  let scoreRight = oppScore
-  if (teamPlayer?.player_id !== playerAId) {
-    scoreLeft = oppScore
-    scoreRight = teamScore
-  }
+  const scoreLeft = useRounds ? playerAWins : playerATotalCrowns
+  const scoreRight = useRounds ? playerBWins : playerBTotalCrowns
 
   return {
     titleLeft,
@@ -181,7 +179,7 @@ function buildBattleDisplayData({
   }
 }
 
-export async function fetchUnlinkedBattles(matchContext, limit = 10) {
+export async function fetchUnlinkedBattles(matchContext, limit = 10, viewerPlayerId = null) {
   const scenario = getE2ELinkingScenario()
   if (scenario) {
     const fixture = E2E_UNLINKED_FIXTURES[scenario] ?? E2E_UNLINKED_FIXTURES.default
@@ -269,6 +267,15 @@ export async function fetchUnlinkedBattles(matchContext, limit = 10) {
     scheduledMatch.player_b_id,
   )
 
+  const canOrientToViewer =
+    viewerPlayerId &&
+    (viewerPlayerId === scheduledMatch.player_a_id || viewerPlayerId === scheduledMatch.player_b_id)
+
+  const leftPlayerId = canOrientToViewer ? viewerPlayerId : scheduledMatch.player_a_id
+  const rightPlayerId = canOrientToViewer
+    ? (viewerPlayerId === scheduledMatch.player_a_id ? scheduledMatch.player_b_id : scheduledMatch.player_a_id)
+    : scheduledMatch.player_b_id
+
   return (battles ?? [])
     .filter((battle) => !linkedIds.has(battle.battle_id) && validBattleIds.has(battle.battle_id))
     .slice(0, limit)
@@ -277,8 +284,8 @@ export async function fetchUnlinkedBattles(matchContext, limit = 10) {
         battle,
         rounds,
         roundPlayers,
-        playerAId: scheduledMatch.player_a_id,
-        playerBId: scheduledMatch.player_b_id,
+        playerAId: leftPlayerId,
+        playerBId: rightPlayerId,
         playerNameById,
       })
 

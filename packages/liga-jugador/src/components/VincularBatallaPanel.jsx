@@ -27,7 +27,7 @@ function ResultBadge({ result }) {
 
 
 export default function VincularBatallaPanel({ open, onClose, matchContext, appUserId, onLinked }) {
-  const { isImpersonating, isSuperAdmin } = usePlayerAuth()
+  const { effectivePlayerId, isImpersonating, isSuperAdmin } = usePlayerAuth()
   const [rows, setRows] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(false)
@@ -41,7 +41,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
     setError(null)
 
     try {
-      const data = await fetchUnlinkedBattles(matchContext, 10)
+      const data = await fetchUnlinkedBattles(matchContext, 10, effectivePlayerId)
       setRows(data)
       setSelectedIds([])
     } catch (err) {
@@ -50,7 +50,7 @@ export default function VincularBatallaPanel({ open, onClose, matchContext, appU
     } finally {
       setLoading(false)
     }
-  }, [open, matchContext])
+  }, [open, matchContext, effectivePlayerId])
 
   useEffect(() => {
     load()
