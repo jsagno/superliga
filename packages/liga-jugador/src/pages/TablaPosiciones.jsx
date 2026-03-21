@@ -172,6 +172,7 @@ export default function TablaPosiciones() {
   const [activeTab, setActiveTab] = useState('ZONE')
   const [tabSetByLeague, setTabSetByLeague] = useState(false)
   const [selectedZoneId, setSelectedZoneId] = useState('')
+  const [selectedLeagueZoneId, setSelectedLeagueZoneId] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const currentRowRef = useRef(null)
@@ -230,9 +231,12 @@ export default function TablaPosiciones() {
         }
       }
 
+      const effectiveLeagueZoneId =
+        activeTab !== 'ZONE' && selectedLeagueZoneId !== 'ALL' ? selectedLeagueZoneId : undefined
+
       const rows = await fetchPlayerStandings(
         selectedSeasonId,
-        activeTab === 'ZONE' && effectiveZoneId !== 'ALL' ? effectiveZoneId : undefined,
+        activeTab === 'ZONE' && effectiveZoneId !== 'ALL' ? effectiveZoneId : effectiveLeagueZoneId,
         activeTab === 'ZONE' ? 'ZONE' : 'LEAGUE',
         activeTab === 'ZONE' ? undefined : activeTab,
       )
@@ -249,7 +253,7 @@ export default function TablaPosiciones() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId])
+  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId, selectedLeagueZoneId])
 
   useEffect(() => {
     loadStandings()
@@ -282,9 +286,12 @@ export default function TablaPosiciones() {
 
   const lastUpdated = useMemo(() => {
     if (activeTab === 'ZONE') return null
-    const zoneId = playerContext?.zoneId ?? zones[0]?.zoneId
+    const zoneId =
+      selectedLeagueZoneId !== 'ALL'
+        ? selectedLeagueZoneId
+        : playerContext?.zoneId ?? zones[0]?.zoneId
     return zones.find((z) => z.zoneId === zoneId)?.lastSnapshotAt ?? null
-  }, [zones, activeTab, playerContext])
+  }, [zones, activeTab, playerContext, selectedLeagueZoneId])
 
   return (
     <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
@@ -312,6 +319,7 @@ export default function TablaPosiciones() {
             onChange={(seasonId) => {
               setSelectedSeasonId(seasonId)
               setSelectedZoneId('')
+              setSelectedLeagueZoneId('ALL')
             }}
           />
 
@@ -319,6 +327,21 @@ export default function TablaPosiciones() {
 
           {activeTab === 'ZONE' && (
             <ZoneChips zones={zones} selectedZoneId={selectedZoneId} onSelect={setSelectedZoneId} />
+          )}
+
+          {activeTab !== 'ZONE' && zones.length > 1 && (
+            <label className="block">
+              <select
+                value={selectedLeagueZoneId}
+                onChange={(e) => setSelectedLeagueZoneId(e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-200 outline-none focus:border-blue-500"
+              >
+                <option value="ALL">Todas las zonas</option>
+                {zones.map((z) => (
+                  <option key={z.zoneId} value={z.zoneId}>{z.name}</option>
+                ))}
+              </select>
+            </label>
           )}
 
           {playerContext && (
