@@ -5,10 +5,7 @@ El sistema SHALL proveer una pantalla en liga-admin (`/admin/seasons/:seasonId/z
 
 #### Scenario: Tabla muestra columnas correctas
 - **WHEN** el admin abre la pantalla de standings
-- **THEN** se muestra una tabla por liga con columnas: RNK, jugador (nick + avatar), AN, AC, ⚔️ (duelos), TOTAL, Δ posición
-#### Scenario: Tabla muestra columnas correctas
-- **WHEN** el admin abre la pantalla de standings
-- **THEN** se muestra una tabla por liga con columnas: RNK, jugador (nick + avatar), AN, AC, ⚔️ (duelos), 🏆 (copa), TOTAL, Δ posición
+- **THEN** se muestra una tabla por liga con columnas: RNK, jugador (nick + icono del team), AN, AC, ⚔️ (duelos), 🏆 (copa), TOTAL, Δ posición
 
 #### Scenario: AN column muestra initial_points
 - **WHEN** se renderiza una fila de la tabla
@@ -21,9 +18,10 @@ El sistema SHALL proveer una pantalla en liga-admin (`/admin/seasons/:seasonId/z
 #### Scenario: Columna duelos muestra puntos CW_DAILY
 - **WHEN** se renderiza una fila de la tabla
 - **THEN** la columna ⚔️ muestra la suma de `points_ledger.points` donde `source_type='CW_DAILY'` para ese jugador
-#### Scenario: Columna duelos muestra puntos CW_DAILY
-- **WHEN** se renderiza una fila de la tabla
-- **THEN** la columna ⚔️ muestra la suma de `points_ledger.points` donde `source_type='CW_DAILY'` para ese jugador
+
+#### Scenario: Jugador muestra branding del team
+- **WHEN** se renderiza una fila y el jugador tiene team con logo
+- **THEN** el nombre del jugador se muestra junto al icono del team en la columna Jugador
 
 #### Scenario: Columna copa muestra puntos de competición
 - **WHEN** se renderiza una fila de la tabla

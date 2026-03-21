@@ -16,28 +16,6 @@ const VIEW_TABS = [
   { key: 'C', label: 'Liga C' },
 ]
 
-function SeasonSelect({ seasons, selectedSeasonId, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-        Temporada
-      </span>
-      <select
-        aria-label="Seleccionar temporada"
-        className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-blue-500/60"
-        value={selectedSeasonId}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {seasons.map((season) => (
-          <option key={season.seasonId} value={season.seasonId}>
-            {season.description}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
 function ZoneSelect({ zones, selectedZoneId, onChange }) {
   return (
     <label className="block">
@@ -155,6 +133,7 @@ export default function TablaPosiciones() {
   const [selectedZoneId, setSelectedZoneId] = useState('')
   const [activeTab, setActiveTab] = useState('A')
   const [tabSetByLeague, setTabSetByLeague] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const currentRowRef = useRef(null)
@@ -170,7 +149,9 @@ export default function TablaPosiciones() {
         if (cancelled) return
         setSeasons(seasonRows)
         if (seasonRows.length > 0) {
-          const defaultSeason = seasonRows.find((season) => season.status === 'ACTIVE') ?? seasonRows[0]
+          const activeSeason = seasonRows.find((season) => season.status === 'ACTIVE')
+          const previousSeason = seasonRows.find((season) => season.status !== 'ACTIVE')
+          const defaultSeason = activeSeason ?? previousSeason ?? seasonRows[0]
           setSelectedSeasonId(defaultSeason.seasonId)
         }
       } catch (loadError) {
@@ -270,8 +251,8 @@ export default function TablaPosiciones() {
   }, [zones, selectedZoneId])
 
   return (
-    <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
-      <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-4">
+    <div className="h-[100dvh] overflow-hidden bg-gray-950 text-slate-200">
+      <main className="mx-auto flex h-full max-w-md flex-col px-4 pb-24 pt-4">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
@@ -283,29 +264,18 @@ export default function TablaPosiciones() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-3 text-slate-400">
+          <button
+            type="button"
+            aria-label="Abrir filtros"
+            onClick={() => setIsFilterOpen(true)}
+            className="rounded-2xl border border-slate-800 bg-slate-900 p-3 text-slate-400 transition hover:border-slate-700 hover:text-slate-300"
+          >
             <Filter className="h-5 w-5" strokeWidth={2} />
-          </div>
+          </button>
         </header>
 
-        <div className="space-y-4">
-          <SeasonSelect
-            seasons={seasons}
-            selectedSeasonId={selectedSeasonId}
-            onChange={(seasonId) => {
-              setSelectedSeasonId(seasonId)
-              setSelectedZoneId('')
-              setTabSetByLeague(false)
-            }}
-          />
-
-          {zones.length > 0 && (
-            <ZoneSelect zones={zones} selectedZoneId={selectedZoneId} onChange={setSelectedZoneId} />
-          )}
-
-          <ViewTabs activeTab={activeTab} onChange={setActiveTab} />
-
-          <section>
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <section className="flex min-h-0 flex-1 flex-col">
             <div className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
               <span>Liga {activeTab}</span>
               <span>{standings.length} jugadores</span>
@@ -326,20 +296,31 @@ export default function TablaPosiciones() {
               <div
                 ref={listRef}
                 data-testid="standings-list"
-                className="max-h-[58vh] border border-slate-800 rounded-2xl overflow-y-auto"
+                className="min-h-0 flex-1 rounded-2xl border border-slate-800 overflow-y-auto overflow-x-hidden"
               >
-                <table className="w-full text-sm">
+                <table className="w-full table-fixed text-xs sm:text-sm">
+                  <colgroup>
+                    <col className="w-[10%]" />
+                    <col className="w-[34%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[9%]" />
+                  </colgroup>
                   <thead className="sticky top-0 bg-slate-900/95 border-b border-slate-800">
                     <tr className="text-slate-400 text-xs">
-                      <th className="px-3 py-3 text-center w-10">RNK</th>
-                      <th className="px-3 py-3 text-left">Jugador</th>
-                      <th className="px-3 py-3 text-center text-[11px]" title="Puntos iniciales (handicap)">AN</th>
-                      <th className="px-3 py-3 text-center text-[11px]" title="Bonificaciones manuales">AC</th>
-                      <th className="px-3 py-3 text-center text-[11px]" title="Duelos">⚔️</th>
-                      <th className="px-3 py-3 text-center text-[11px]" title="Copa">🏆</th>
-                      <th className="px-3 py-3 text-center text-[11px] font-bold">TOTAL</th>
-                      <th className="px-3 py-3 text-center text-[11px]">G</th>
-                      <th className="px-3 py-3 text-center text-[11px]">P</th>
+                      <th className="px-1.5 py-2 text-center sm:px-3 sm:py-3">RNK</th>
+                      <th className="px-1.5 py-2 text-left sm:px-3 sm:py-3">Jugador</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Puntos iniciales (handicap)">AN</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Bonificaciones manuales">AC</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Duelos">⚔️</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Copa">🏆</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] font-bold sm:px-3 sm:py-3 sm:text-[11px]">TOTAL</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]">G</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]">P</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -361,6 +342,39 @@ export default function TablaPosiciones() {
             )}
           </section>
         </div>
+
+        {isFilterOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 px-4 py-8"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filtros de tabla"
+            onClick={() => setIsFilterOpen(false)}
+          >
+            <div
+              className="mx-auto max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-4"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">Filtros</p>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterOpen(false)}
+                  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-slate-100"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {zones.length > 0 && (
+                  <ZoneSelect zones={zones} selectedZoneId={selectedZoneId} onChange={setSelectedZoneId} />
+                )}
+                <ViewTabs activeTab={activeTab} onChange={setActiveTab} />
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <BottomNav />

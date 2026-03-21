@@ -49,6 +49,9 @@
 - [x] 6.2 Actualizar lógica de tab default: si `playerContext.league === 'C'`, seleccionar tab `'C'` por defecto.
 - [x] 6.3 Actualizar `standingsService.fetchPlayerStandings` (y/o `fetchSeasonZones`) para incluir `season_zone.last_snapshot_at`.
 - [x] 6.4 Mostrar timestamp de última actualización en la UI convertido a UTC-3: "Actualizado: DD/MM/YYYY HH:mm (GMT-3)".
+- [x] 6.5 Reordenar la UI para mostrar selector de zona antes de los tabs de liga y eliminar el selector de zonas dentro de cada liga.
+- [x] 6.6 Alinear la tabla de liga-jugador con liga-admin: columnas AN, AC, ⚔️, 🏆, TOTAL, G, P e icono del team por fila.
+- [x] 6.7 Corregir la carga inicial para que la primera consulta use la liga efectiva del jugador y no muestre momentáneamente otra liga.
 
 ## 7. Enrutamiento y navegación liga-admin
 
@@ -61,5 +64,5 @@
 - [ ] 8.2 Verificar en liga-admin que SeasonZoneRankings guarda `league` e `initial_points` correctamente.
 - [ ] 8.3 Verificar en liga-admin que SeasonBonusPoints crea y anula entradas en `points_ledger`.
 - [ ] 8.4 Verificar en liga-admin que AdminLeagueStandings muestra standings con breakdown y timestamp.
-- [ ] 8.5 Verificar en liga-jugador que TablaPosiciones muestra tab Liga C y timestamp.
-- [ ] 8.6 Crear rama `feature/league-standings`, commitear, push y abrir PR.
+- [x] 8.5 Verificar en liga-jugador que TablaPosiciones muestra tab Liga C y timestamp.
+- [x] 8.6 Crear rama `feature/league-standings`, commitear, push y abrir PR.
