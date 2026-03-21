@@ -2,6 +2,8 @@
 
 Python script that computes and persists `player_standings_snapshot` for LigaInterna.
 
+This script remains a one-shot executable, but it can also be invoked automatically by `packages/cron/cron_clash_sync.py` after each completed sync cycle.
+
 ## What it does
 
 On each run, for every active season and zone:
@@ -27,6 +29,16 @@ pip install -r requirements.txt
 python standings_cron.py
 ```
 
+## Chained Execution
+
+When the main cron loop is enabled, standings runs as the second phase of the shared 30-minute cycle:
+
+1. `cron_clash_sync.py` completes battle sync.
+2. It invokes `standings_cron.py` in one-shot mode.
+3. The main loop sleeps 30 minutes.
+
+Do not schedule a second independent standings job in production if the chained cron flow is being used.
+
 ## Configuration
 
 | Variable       | Required | Default                          | Description                  |
@@ -38,7 +50,7 @@ python standings_cron.py
 
 ## Scheduling
 
-Run on a fixed interval (e.g., every 30 minutes via cron or a task scheduler):
+Standalone scheduling is still possible for manual operations or environments where the chained flow is not enabled:
 
 ```
 # Linux/macOS crontab example
