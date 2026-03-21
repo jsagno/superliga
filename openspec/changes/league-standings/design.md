@@ -41,6 +41,8 @@
 - Nuevo cron de standings calcula posiciones y escribe `player_standings_snapshot` en schedule fijo (no en tiempo real).
 - Liga-admin y liga-jugador leen el snapshot precalculado.
 - Liga-jugador muestra tab Liga C y timestamp de última actualización.
+- Liga-jugador usa selector de zona antes de los tabs de liga y renderiza la tabla con el mismo breakdown que liga-admin.
+- Liga-admin y liga-jugador muestran el icono del team junto al jugador cuando existe logo disponible.
 
 **Non-Goals:**
 - No se calculan standings en tiempo real (siempre del snapshot).
@@ -75,7 +77,19 @@ El cron de clash-sync ya genera `scheduled_match_result.points_a/b`. El standing
 
 **Alternativa:** el clash-sync cron escribe también en points_ledger. Rechazada: separación de responsabilidades. El clash-sync sincroniza batallas; el standings cron agrega puntos.
 
-### Decisión 7: Identificación de competiciones Copa de Liga / Copa Revenge por nombre en tabla `competition`
+### Decisión 5: UI de standings alineada entre admin y jugador
+
+`AdminLeagueStandings.jsx` y `TablaPosiciones.jsx` comparten la misma semántica visual para las filas y el breakdown de puntos. En liga-jugador el flujo quedó: selector de temporada, selector de zona y recién después tabs A / B / C. La tabla muestra RNK, jugador con icono del team, AN, AC, ⚔️, 🏆, TOTAL, G y P.
+
+### Decisión 6: El tab inicial se resuelve con la liga efectiva del jugador antes de cargar standings
+
+La pantalla de liga-jugador no debe renderizar primero resultados de Liga A para luego corregirse a Liga B/C. La consulta inicial resuelve primero `playerContext.league` y usa esa liga efectiva en el fetch inicial para evitar estados intermedios inconsistentes o respuestas async viejas pisando el estado correcto.
+
+### Decisión 7: `delta_position` en el snapshot
+
+El standings cron guarda la posición anterior antes de reescribir, y calcula el delta. Si no había snapshot previo, delta = 0.
+
+### Decisión 8: Identificación de competiciones Copa de Liga / Copa Revenge por nombre en tabla `competition`
 
 El standings cron identifica las competiciones relevantes consultando `competition WHERE name IN ('Copa de Liga', 'Copa Revenge')`. La unión sigue la cadena: `competition` → `scheduled_match.competition_id` → `scheduled_match_result`. El lado del jugador se determina por `scheduled_match.player_a_id` / `player_b_id`; se usa `points_a` o `points_b` según corresponda.
 
@@ -83,7 +97,7 @@ Los `source_type` resultantes son `'COPA_LIGA'` (para matches de Copa de Liga) y
 
 **Alternativa:** filtrar por `season_competition_config` o agregar columna `contributes_to_standings` a `competition`. Rechazada por sobreingeniería: los nombres de estas competiciones son estables y configurar por nombre es suficientemente explícito.
 
-### Decisión 8: `points_total` incluye puntos de copa
+### Decisión 9: `points_total` incluye puntos de copa
 
 `points_total = initial_points + SUM(points_ledger WHERE source_type IN ('LIGA_BONUS','CW_DAILY','COPA_LIGA','COPA_REVENGE'))`
 
@@ -93,13 +107,6 @@ La columna 🏆 copa en la UI muestra el desglose de copa por separado pero el T
 
 El campo `season_zone.last_snapshot_at` ya existe. El standings cron lo actualiza en cada run. Liga-admin y liga-jugador lo muestran como "Actualizado: DD/MM/YYYY HH:mm (hora Argentina)".
 
-### Decisión 5: UI de la admin standings — una pantalla por season/zone, con tabs por liga
-
-Misma estructura que `TablaPosiciones.jsx` en liga-jugador. Selector de temporada y zona arriba; tabs A / B / C debajo. Tabla con columnas: RNK, jugador, AN, AC, duelos, TOTAL, Δ posición.
-
-### Decisión 6: `delta_position` en el snapshot
-
-El standings cron guarda la posición anterior antes de reescribir, y calcula el delta. Si no había snapshot previo, delta = 0.
 
 ## Risks / Trade-offs
 

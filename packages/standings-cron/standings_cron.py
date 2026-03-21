@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
+from postgrest.exceptions import APIError
 from supabase import create_client, Client
 
 
@@ -67,6 +68,35 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def insert_points_ledger_rows_idempotent(sb: Client, rows: List[Dict[str, Any]]) -> int:
+    """
+    Inserts points_ledger rows one-by-one.
+    Duplicate-key errors (23505) are ignored to preserve idempotency.
+
+    Why row-by-row?
+    - points_ledger idempotency is enforced by a partial expression unique index
+      (ux_points_ledger_idempotent), which PostgREST cannot target via on_conflict
+      column inference. Batch upsert therefore fails with 42P10.
+    """
+    inserted = 0
+    duplicates = 0
+
+    for row in rows:
+        try:
+            sb.table("points_ledger").insert(row).execute()
+            inserted += 1
+        except APIError as exc:
+            # Unique violation -> row already exists (idempotent re-run)
+            if getattr(exc, "code", None) == "23505":
+                duplicates += 1
+                continue
+            raise
+
+    if duplicates:
+        logging.info(f"  [LEDGER] Skipped {duplicates} duplicate row(s)")
+    return inserted
+
+
 # ──────────────────────────────────────────────────────────────
 # Step 1 — Populate points_ledger from CW_DAILY duels
 # ──────────────────────────────────────────────────────────────
@@ -93,7 +123,7 @@ def populate_cw_daily_ledger(sb: Client, season_id: str) -> int:
     )
 
     matches = resp.data or []
-    rows_to_upsert: List[Dict[str, Any]] = []
+    rows_to_insert: List[Dict[str, Any]] = []
 
     for m in matches:
         result = m.get("scheduled_match_result")
@@ -109,7 +139,7 @@ def populate_cw_daily_ledger(sb: Client, season_id: str) -> int:
         zone_id = m["zone_id"]
 
         if m["player_a_id"]:
-            rows_to_upsert.append({
+            rows_to_insert.append({
                 "scope": "PLAYER",
                 "season_id": season_id,
                 "zone_id": zone_id,
@@ -122,7 +152,7 @@ def populate_cw_daily_ledger(sb: Client, season_id: str) -> int:
             })
 
         if m.get("player_b_id"):
-            rows_to_upsert.append({
+            rows_to_insert.append({
                 "scope": "PLAYER",
                 "season_id": season_id,
                 "zone_id": zone_id,
@@ -134,18 +164,12 @@ def populate_cw_daily_ledger(sb: Client, season_id: str) -> int:
                 "is_reversal": False,
             })
 
-    if not rows_to_upsert:
-        logging.info("  [CW_DAILY] No new duel rows to upsert")
+    if not rows_to_insert:
+        logging.info("  [CW_DAILY] No duel rows to process")
         return 0
 
-    upsert_resp = (
-        sb.table("points_ledger")
-        .upsert(rows_to_upsert, on_conflict="scope,season_id,zone_id,player_id,source_type,source_id,sub_key")
-        .execute()
-    )
-
-    inserted = len(upsert_resp.data) if upsert_resp.data else 0
-    logging.info(f"  [CW_DAILY] Upserted {inserted} ledger rows")
+    inserted = insert_points_ledger_rows_idempotent(sb, rows_to_insert)
+    logging.info(f"  [CW_DAILY] Inserted {inserted} new ledger row(s)")
     return inserted
 
 
@@ -198,7 +222,7 @@ def populate_competition_ledger(sb: Client, season_id: str) -> int:
     )
 
     matches = resp.data or []
-    rows_to_upsert: List[Dict[str, Any]] = []
+    rows_to_insert: List[Dict[str, Any]] = []
 
     for m in matches:
         result = m.get("scheduled_match_result")
@@ -216,7 +240,7 @@ def populate_competition_ledger(sb: Client, season_id: str) -> int:
             continue
 
         if m["player_a_id"]:
-            rows_to_upsert.append({
+            rows_to_insert.append({
                 "scope": "PLAYER",
                 "season_id": season_id,
                 "zone_id": zone_id,
@@ -229,7 +253,7 @@ def populate_competition_ledger(sb: Client, season_id: str) -> int:
             })
 
         if m.get("player_b_id"):
-            rows_to_upsert.append({
+            rows_to_insert.append({
                 "scope": "PLAYER",
                 "season_id": season_id,
                 "zone_id": zone_id,
@@ -241,18 +265,12 @@ def populate_competition_ledger(sb: Client, season_id: str) -> int:
                 "is_reversal": False,
             })
 
-    if not rows_to_upsert:
-        logging.info("  [COPA] No new copa rows to upsert")
+    if not rows_to_insert:
+        logging.info("  [COPA] No copa rows to process")
         return 0
 
-    upsert_resp = (
-        sb.table("points_ledger")
-        .upsert(rows_to_upsert, on_conflict="scope,season_id,zone_id,player_id,source_type,source_id,sub_key")
-        .execute()
-    )
-
-    inserted = len(upsert_resp.data) if upsert_resp.data else 0
-    logging.info(f"  [COPA] Upserted {inserted} ledger rows")
+    inserted = insert_points_ledger_rows_idempotent(sb, rows_to_insert)
+    logging.info(f"  [COPA] Inserted {inserted} new ledger row(s)")
     return inserted
 
 
@@ -473,7 +491,7 @@ def write_snapshot(sb: Client, season_id: str, zone_id: str, computed_rows: List
     if all_snapshot_rows:
         sb.table("player_standings_snapshot").upsert(
             all_snapshot_rows,
-            on_conflict="season_id,zone_id,player_id,scope",
+            on_conflict="season_id,zone_id,scope,league,player_id",
         ).execute()
         total_written = len(all_snapshot_rows)
 

@@ -216,6 +216,42 @@ const FIXTURE_LEAGUE_B = [
   }),
 ]
 
+const FIXTURE_LEAGUE_C = [
+  createFixtureRow({
+    playerId: E2E_PLAYER_ID,
+    position: 1,
+    pointsTotal: 28,
+    wins: 9,
+    losses: 3,
+    deltaPosition: 1,
+    league: 'C',
+    zoneId: 'zone-3',
+    zoneName: 'Zona 3',
+    teamName: 'Berserk',
+    nick: 'Rauldaggs',
+    name: 'Raul Daggs',
+    currentTag: '#PLYR0001',
+    duelsPoints: 7,
+    cupPoints: 2,
+  }),
+  createFixtureRow({
+    playerId: 'league-c-2',
+    position: 2,
+    pointsTotal: 24,
+    wins: 8,
+    losses: 4,
+    deltaPosition: 0,
+    league: 'C',
+    zoneId: 'zone-3',
+    zoneName: 'Zona 3',
+    teamName: 'Guardians',
+    nick: 'Nico',
+    name: 'Nico',
+    currentTag: '#C0002',
+    duelsPoints: 6,
+  }),
+]
+
 const E2E_STANDINGS_FIXTURE = {
   seasons: [
     { seasonId: 'season-1', description: 'Temporada 7', status: 'ACTIVE' },
@@ -450,17 +486,44 @@ const E2E_STANDINGS_FIXTURE = {
   },
 }
 
+const E2E_STANDINGS_SCENARIOS = {
+  default: E2E_STANDINGS_FIXTURE,
+  'liga-c-default': {
+    ...E2E_STANDINGS_FIXTURE,
+    playerContext: {
+      ...E2E_STANDINGS_FIXTURE.playerContext,
+      'season-1': {
+        ...E2E_STANDINGS_FIXTURE.playerContext['season-1'],
+        league: 'C',
+      },
+    },
+    leagueRows: {
+      ...E2E_STANDINGS_FIXTURE.leagueRows,
+      'season-1:C': FIXTURE_LEAGUE_C,
+    },
+  },
+}
+
 function getE2EStandingsScenario() {
   if (!E2E_AUTH_BYPASS_ENABLED || typeof window === 'undefined') return null
   return window.localStorage.getItem(STANDINGS_SCENARIO_STORAGE_KEY) ?? 'default'
 }
 
+function getActiveStandingsFixture() {
+  const scenario = getE2EStandingsScenario()
+  if (!scenario) return null
+  return E2E_STANDINGS_SCENARIOS[scenario] ?? E2E_STANDINGS_FIXTURE
+}
+
 function getFixtureRowsForStandings({ seasonId, zoneId, scope, league }) {
+  const fixture = getActiveStandingsFixture() ?? E2E_STANDINGS_FIXTURE
   if (scope === 'LEAGUE') {
-    return E2E_STANDINGS_FIXTURE.leagueRows[`${seasonId}:${league}`] ?? []
+    const rows = fixture.leagueRows[`${seasonId}:${league}`] ?? []
+    if (!zoneId) return rows
+    return rows.filter((row) => row.zoneId === zoneId)
   }
 
-  const allRows = E2E_STANDINGS_FIXTURE.zoneRows[seasonId] ?? []
+  const allRows = fixture.zoneRows[seasonId] ?? []
   if (!zoneId) return allRows
   return allRows.filter((row) => row.zoneId === zoneId)
 }
@@ -499,7 +562,7 @@ function sortAssignments(rows) {
 
 export async function fetchSeasons() {
   if (getE2EStandingsScenario()) {
-    return E2E_STANDINGS_FIXTURE.seasons
+    return (getActiveStandingsFixture() ?? E2E_STANDINGS_FIXTURE).seasons
   }
 
   const { data, error } = await supabase
@@ -521,7 +584,7 @@ export async function fetchSeasons() {
 
 export async function fetchSeasonZones(seasonId) {
   if (getE2EStandingsScenario()) {
-    return E2E_STANDINGS_FIXTURE.zones[seasonId] ?? []
+    return (getActiveStandingsFixture() ?? E2E_STANDINGS_FIXTURE).zones[seasonId] ?? []
   }
 
   const { data, error } = await supabase
@@ -538,7 +601,7 @@ export async function fetchSeasonZones(seasonId) {
 
 export async function fetchPlayerSeasonContext(playerId, seasonId) {
   if (getE2EStandingsScenario()) {
-    return E2E_STANDINGS_FIXTURE.playerContext[seasonId] ?? null
+    return (getActiveStandingsFixture() ?? E2E_STANDINGS_FIXTURE).playerContext[seasonId] ?? null
   }
 
   const { data, error } = await supabase
