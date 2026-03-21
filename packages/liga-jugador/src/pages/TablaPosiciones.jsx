@@ -159,6 +159,7 @@ export default function TablaPosiciones() {
   const [error, setError] = useState(false)
   const currentRowRef = useRef(null)
   const listRef = useRef(null)
+  const latestRequestRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -191,6 +192,9 @@ export default function TablaPosiciones() {
   const loadStandings = useCallback(async () => {
     if (!effectivePlayerId || !selectedSeasonId) return
 
+    const requestId = latestRequestRef.current + 1
+    latestRequestRef.current = requestId
+
     setLoading(true)
     setError(false)
 
@@ -200,46 +204,50 @@ export default function TablaPosiciones() {
         fetchPlayerSeasonContext(effectivePlayerId, selectedSeasonId),
       ])
 
+      if (latestRequestRef.current !== requestId) return
+
       setZones(zoneRows)
       setPlayerContext(context)
 
-      // Initialize selected zone if not set
       let effectiveZoneId = selectedZoneId
       if (!effectiveZoneId && context?.zoneId) {
         effectiveZoneId = context.zoneId
         setSelectedZoneId(effectiveZoneId)
       }
 
-      // Fetch standings for selected league and zone
+      let effectiveLeague = activeTab
+      if (!tabSetByLeague && (context?.league === 'A' || context?.league === 'B' || context?.league === 'C')) {
+        effectiveLeague = context.league
+        setTabSetByLeague(true)
+        if (context.league !== activeTab) {
+          setActiveTab(context.league)
+        }
+      }
+
       const rows = await fetchPlayerStandings(
         selectedSeasonId,
         effectiveZoneId,
         'LEAGUE',
-        activeTab,
+        effectiveLeague,
       )
+
+      if (latestRequestRef.current !== requestId) return
 
       setStandings(rows)
     } catch (loadError) {
+      if (latestRequestRef.current !== requestId) return
       console.error('Failed to load standings:', loadError)
       setError(true)
     } finally {
-      setLoading(false)
+      if (latestRequestRef.current === requestId) {
+        setLoading(false)
+      }
     }
-  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId])
+  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId, tabSetByLeague])
 
   useEffect(() => {
     loadStandings()
   }, [loadStandings])
-
-  // Task 6.2: auto-select league tab for Liga C (and A/B) players on first load
-  useEffect(() => {
-    if (!playerContext || tabSetByLeague) return
-    const league = playerContext.league
-    if (league === 'A' || league === 'B' || league === 'C') {
-      setTabSetByLeague(true)
-      setActiveTab(league)
-    }
-  }, [playerContext, tabSetByLeague])
 
   useEffect(() => {
     if (!currentRowRef.current) return
@@ -287,6 +295,7 @@ export default function TablaPosiciones() {
             onChange={(seasonId) => {
               setSelectedSeasonId(seasonId)
               setSelectedZoneId('')
+              setTabSetByLeague(false)
             }}
           />
 
