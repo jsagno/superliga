@@ -388,6 +388,22 @@ export default function SeasonZones() {
                 <span className="material-symbols-outlined text-[18px]">emoji_events</span>
                 Rankings
               </button>
+              <button 
+                type="button" 
+                className="w-full flex items-center justify-center gap-2 rounded-lg h-10 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-200 font-semibold text-sm transition-colors active:scale-[0.98] transform duration-100" 
+                onClick={() => navigate(`/admin/seasons/${seasonId}/zones/${z.zone_id}/bonus-points`)}
+              >
+                <span className="material-symbols-outlined text-[18px]">stars</span>
+                Bonificaciones
+              </button>
+              <button 
+                type="button" 
+                className="w-full flex items-center justify-center gap-2 rounded-lg h-10 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 text-teal-200 font-semibold text-sm transition-colors active:scale-[0.98] transform duration-100" 
+                onClick={() => navigate(`/admin/seasons/${seasonId}/zones/${z.zone_id}/league-standings`)}
+              >
+                <span className="material-symbols-outlined text-[18px]">leaderboard</span>
+                Ver Standings
+              </button>
             </div>
           </div>
         ))}

@@ -1,29 +1,4 @@
 import React from 'react'
-import { Minus, TrendingDown, TrendingUp } from 'lucide-react'
-
-function getTrend(deltaPosition) {
-  if (deltaPosition > 0) {
-    return {
-      Icon: TrendingUp,
-      label: 'Subió',
-      className: 'text-emerald-400',
-    }
-  }
-
-  if (deltaPosition < 0) {
-    return {
-      Icon: TrendingDown,
-      label: 'Bajó',
-      className: 'text-rose-400',
-    }
-  }
-
-  return {
-    Icon: Minus,
-    label: 'Estable',
-    className: 'text-slate-500',
-  }
-}
 
 function getAvatarLabel(row) {
   const source = row.nick ?? row.name ?? 'J'
@@ -31,67 +6,74 @@ function getAvatarLabel(row) {
 }
 
 export default function StandingsRow({ row, isCurrentPlayer = false, showZone = false, rowRef = null }) {
-  const trend = getTrend(row.deltaPosition)
   const displayName = row.nick ?? row.name ?? 'Jugador'
 
   return (
-    <div
+    <tr
       ref={rowRef}
       data-current-player={isCurrentPlayer ? 'true' : 'false'}
       data-player-id={row.playerId}
       className={[
-        'flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
-        isCurrentPlayer
-          ? 'border-blue-500/40 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.15)]'
-          : 'border-slate-800 bg-slate-900/70',
+        'border-b border-slate-800 hover:bg-slate-800/30 transition-colors',
+        isCurrentPlayer ? 'bg-blue-500/10' : '',
       ].join(' ')}
     >
-      <div className="flex w-10 flex-col items-center justify-center text-center">
-        <span className="text-xs text-slate-500">#</span>
-        <span className="text-lg font-bold text-slate-100">{row.position}</span>
-      </div>
+      {/* Position */}
+      <td className="px-1.5 py-2 text-center sm:px-3 sm:py-3">
+        <span className={`inline-flex h-6 w-6 items-center justify-center rounded text-xs font-bold sm:h-7 sm:w-7 sm:text-sm ${
+          row.position === 1 ? 'bg-yellow-500/30 text-yellow-300' :
+          row.position === 2 ? 'bg-slate-400/20 text-slate-300' :
+          row.position === 3 ? 'bg-amber-600/20 text-amber-400' :
+          'text-white/50'
+        }`}>
+          {row.position}
+        </span>
+      </td>
 
-      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-slate-100 ring-1 ring-slate-700">
-        {getAvatarLabel(row)}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-semibold text-slate-100">{displayName}</p>
-          {isCurrentPlayer && (
-            <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300">
-              Tu
-            </span>
+      {/* Team Logo + Name */}
+      <td className="px-1.5 py-2 text-left sm:px-3 sm:py-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {row.teamLogo ? (
+            <img
+              src={row.teamLogo}
+              alt={row.teamName ?? 'Team'}
+              className="h-5 w-5 rounded-full object-cover flex-shrink-0 sm:h-6 sm:w-6"
+              title={row.teamName ?? 'Team'}
+            />
+          ) : (
+            <div className="h-5 w-5 flex-shrink-0 rounded-full bg-slate-700 sm:h-6 sm:w-6" />
           )}
-          {row.currentTag && (
-            <span className="truncate text-[11px] text-slate-500">{row.currentTag}</span>
-          )}
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-slate-100 sm:text-sm">{displayName}</p>
+            {isCurrentPlayer && (
+              <span className="mt-0.5 inline-block rounded-full border border-blue-500/30 bg-blue-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-300 sm:px-1.5 sm:text-[10px]">
+                tú
+              </span>
+            )}
+          </div>
         </div>
+      </td>
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
-          <span>
-            {row.wins}W - {row.losses}L
-          </span>
-          {row.teamName && <span>{row.teamName}</span>}
-          {showZone && row.zoneName && (
-            <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300">
-              {row.zoneName}
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Initial Points (AN) */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-slate-300 sm:px-3 sm:py-3 sm:text-xs">{row.initialPoints ?? 0}</td>
 
-      <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-1 sm:flex">
-          <trend.Icon className={`h-4 w-4 ${trend.className}`} strokeWidth={2} aria-hidden="true" />
-          <span className={`text-xs ${trend.className}`}>{trend.label}</span>
-        </div>
+      {/* Bonus Points (AC) */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-slate-300 sm:px-3 sm:py-3 sm:text-xs">{row.bonusPoints ?? 0}</td>
 
-        <div className="text-right">
-          <div className="text-lg font-bold text-slate-100">{row.pointsTotal}</div>
-          <div className="text-[11px] text-slate-500">pts</div>
-        </div>
-      </div>
-    </div>
+      {/* Duels Points (⚔️) */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-slate-300 sm:px-3 sm:py-3 sm:text-xs">{row.duelsPoints ?? 0}</td>
+
+      {/* Cup Points (🏆) */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-slate-300 sm:px-3 sm:py-3 sm:text-xs">{row.cupPoints ?? 0}</td>
+
+      {/* Total Points */}
+      <td className="px-1.5 py-2 text-center text-xs font-bold text-white sm:px-3 sm:py-3 sm:text-sm">{row.pointsTotal}</td>
+
+      {/* Wins */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-green-400 sm:px-3 sm:py-3 sm:text-xs">{row.wins}</td>
+
+      {/* Losses */}
+      <td className="px-1.5 py-2 text-center text-[11px] text-red-400 sm:px-3 sm:py-3 sm:text-xs">{row.losses}</td>
+    </tr>
   )
 }

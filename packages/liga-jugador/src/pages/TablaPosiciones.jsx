@@ -11,26 +11,27 @@ import {
 } from '../services/standingsService.js'
 
 const VIEW_TABS = [
-  { key: 'ZONE', label: 'Zonas' },
   { key: 'A', label: 'Liga A' },
   { key: 'B', label: 'Liga B' },
+  { key: 'C', label: 'Liga C' },
 ]
 
-function SeasonSelect({ seasons, selectedSeasonId, onChange }) {
+function ZoneSelect({ zones, selectedZoneId, onChange }) {
   return (
     <label className="block">
       <span className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-        Temporada
+        Zona
       </span>
       <select
-        aria-label="Seleccionar temporada"
+        aria-label="Seleccionar zona"
         className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-blue-500/60"
-        value={selectedSeasonId}
+        value={selectedZoneId}
         onChange={(event) => onChange(event.target.value)}
       >
-        {seasons.map((season) => (
-          <option key={season.seasonId} value={season.seasonId}>
-            {season.description}
+        <option value="">Selecciona una zona</option>
+        {zones.map((zone) => (
+          <option key={zone.zoneId} value={zone.zoneId}>
+            {zone.name}
           </option>
         ))}
       </select>
@@ -58,40 +59,6 @@ function ViewTabs({ activeTab, onChange }) {
           </button>
         )
       })}
-    </div>
-  )
-}
-
-function ZoneChips({ zones, selectedZoneId, onSelect }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={() => onSelect('ALL')}
-        className={[
-          'rounded-full border px-3 py-1.5 text-sm transition-colors',
-          selectedZoneId === 'ALL'
-            ? 'border-blue-500/40 bg-blue-500/10 text-blue-300'
-            : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200',
-        ].join(' ')}
-      >
-        Todas
-      </button>
-      {zones.map((zone) => (
-        <button
-          key={zone.zoneId}
-          type="button"
-          onClick={() => onSelect(zone.zoneId)}
-          className={[
-            'rounded-full border px-3 py-1.5 text-sm transition-colors',
-            selectedZoneId === zone.zoneId
-              ? 'border-blue-500/40 bg-blue-500/10 text-blue-300'
-              : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200',
-          ].join(' ')}
-        >
-          {zone.name}
-        </button>
-      ))}
     </div>
   )
 }
@@ -135,18 +102,25 @@ function ErrorState({ onRetry }) {
 }
 
 function EmptyState({ activeTab, selectedZoneName }) {
-  const message =
-    activeTab === 'ZONE'
-      ? selectedZoneName
-        ? `No hay jugadores en ${selectedZoneName}`
-        : 'No hay jugadores en esta zona'
-      : 'No hay jugadores en esta liga'
+  const message = 'No hay jugadores en esta liga'
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-5 py-10 text-center text-sm text-slate-400">
       {message}
     </div>
   )
+}
+
+function formatDateTime(isoStr) {
+  if (!isoStr) return null
+  const d = new Date(isoStr)
+  const local = new Date(d.getTime() - 3 * 60 * 60 * 1000)
+  const dd = String(local.getUTCDate()).padStart(2, '0')
+  const mm = String(local.getUTCMonth() + 1).padStart(2, '0')
+  const yyyy = local.getUTCFullYear()
+  const hh = String(local.getUTCHours()).padStart(2, '0')
+  const min = String(local.getUTCMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${min} (GMT-3)`
 }
 
 export default function TablaPosiciones() {
@@ -156,12 +130,15 @@ export default function TablaPosiciones() {
   const [playerContext, setPlayerContext] = useState(null)
   const [standings, setStandings] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
-  const [activeTab, setActiveTab] = useState('ZONE')
   const [selectedZoneId, setSelectedZoneId] = useState('')
+  const [activeTab, setActiveTab] = useState('A')
+  const [tabSetByLeague, setTabSetByLeague] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const currentRowRef = useRef(null)
   const listRef = useRef(null)
+  const latestRequestRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -172,7 +149,9 @@ export default function TablaPosiciones() {
         if (cancelled) return
         setSeasons(seasonRows)
         if (seasonRows.length > 0) {
-          const defaultSeason = seasonRows.find((season) => season.status === 'ACTIVE') ?? seasonRows[0]
+          const activeSeason = seasonRows.find((season) => season.status === 'ACTIVE')
+          const previousSeason = seasonRows.find((season) => season.status !== 'ACTIVE')
+          const defaultSeason = activeSeason ?? previousSeason ?? seasonRows[0]
           setSelectedSeasonId(defaultSeason.seasonId)
         }
       } catch (loadError) {
@@ -194,6 +173,9 @@ export default function TablaPosiciones() {
   const loadStandings = useCallback(async () => {
     if (!effectivePlayerId || !selectedSeasonId) return
 
+    const requestId = latestRequestRef.current + 1
+    latestRequestRef.current = requestId
+
     setLoading(true)
     setError(false)
 
@@ -203,39 +185,46 @@ export default function TablaPosiciones() {
         fetchPlayerSeasonContext(effectivePlayerId, selectedSeasonId),
       ])
 
-      const validZoneIds = new Set(zoneRows.map((zone) => zone.zoneId))
+      if (latestRequestRef.current !== requestId) return
+
+      setZones(zoneRows)
+      setPlayerContext(context)
+
       let effectiveZoneId = selectedZoneId
+      if (!effectiveZoneId && context?.zoneId) {
+        effectiveZoneId = context.zoneId
+        setSelectedZoneId(effectiveZoneId)
+      }
 
-      if (activeTab === 'ZONE') {
-        if (effectiveZoneId !== 'ALL' && !validZoneIds.has(effectiveZoneId)) {
-          effectiveZoneId = context?.zoneId && validZoneIds.has(context.zoneId) ? context.zoneId : 'ALL'
-        }
-
-        if (!effectiveZoneId) {
-          effectiveZoneId = context?.zoneId && validZoneIds.has(context.zoneId) ? context.zoneId : 'ALL'
+      let effectiveLeague = activeTab
+      if (!tabSetByLeague && (context?.league === 'A' || context?.league === 'B' || context?.league === 'C')) {
+        effectiveLeague = context.league
+        setTabSetByLeague(true)
+        if (context.league !== activeTab) {
+          setActiveTab(context.league)
         }
       }
 
       const rows = await fetchPlayerStandings(
         selectedSeasonId,
-        activeTab === 'ZONE' && effectiveZoneId !== 'ALL' ? effectiveZoneId : undefined,
-        activeTab === 'ZONE' ? 'ZONE' : 'LEAGUE',
-        activeTab === 'ZONE' ? undefined : activeTab,
+        effectiveZoneId,
+        'LEAGUE',
+        effectiveLeague,
       )
 
-      setZones(zoneRows)
-      setPlayerContext(context)
+      if (latestRequestRef.current !== requestId) return
+
       setStandings(rows)
-      if (activeTab === 'ZONE' && effectiveZoneId && effectiveZoneId !== selectedZoneId) {
-        setSelectedZoneId(effectiveZoneId)
-      }
     } catch (loadError) {
+      if (latestRequestRef.current !== requestId) return
       console.error('Failed to load standings:', loadError)
       setError(true)
     } finally {
-      setLoading(false)
+      if (latestRequestRef.current === requestId) {
+        setLoading(false)
+      }
     }
-  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId])
+  }, [activeTab, effectivePlayerId, selectedSeasonId, selectedZoneId, tabSetByLeague])
 
   useEffect(() => {
     loadStandings()
@@ -252,13 +241,18 @@ export default function TablaPosiciones() {
   )
 
   const selectedZoneName = useMemo(() => {
-    if (selectedZoneId === 'ALL') return null
+    if (!selectedZoneId) return null
     return zones.find((zone) => zone.zoneId === selectedZoneId)?.name ?? null
   }, [selectedZoneId, zones])
 
+  const lastUpdated = useMemo(() => {
+    const zoneId = selectedZoneId
+    return zones.find((z) => z.zoneId === zoneId)?.lastSnapshotAt ?? null
+  }, [zones, selectedZoneId])
+
   return (
-    <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
-      <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-4">
+    <div className="h-[100dvh] overflow-hidden bg-gray-950 text-slate-200">
+      <main className="mx-auto flex h-full max-w-md flex-col px-4 pb-24 pt-4">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
@@ -270,42 +264,26 @@ export default function TablaPosiciones() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-3 text-slate-400">
+          <button
+            type="button"
+            aria-label="Abrir filtros"
+            onClick={() => setIsFilterOpen(true)}
+            className="rounded-2xl border border-slate-800 bg-slate-900 p-3 text-slate-400 transition hover:border-slate-700 hover:text-slate-300"
+          >
             <Filter className="h-5 w-5" strokeWidth={2} />
-          </div>
+          </button>
         </header>
 
-        <div className="space-y-4">
-          <SeasonSelect
-            seasons={seasons}
-            selectedSeasonId={selectedSeasonId}
-            onChange={(seasonId) => {
-              setSelectedSeasonId(seasonId)
-              setSelectedZoneId('')
-            }}
-          />
-
-          <ViewTabs activeTab={activeTab} onChange={setActiveTab} />
-
-          {activeTab === 'ZONE' && (
-            <ZoneChips zones={zones} selectedZoneId={selectedZoneId} onSelect={setSelectedZoneId} />
-          )}
-
-          {playerContext && (
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
-              <span className="font-semibold text-slate-100">Tu contexto actual:</span>{' '}
-              {playerContext.zoneName ?? 'Zona'} · Liga {playerContext.league ?? '-'}
-            </div>
-          )}
-
-          <section>
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <section className="flex min-h-0 flex-1 flex-col">
             <div className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-              <span>
-                {activeTab === 'ZONE'
-                  ? selectedZoneName ?? 'Todas las zonas'
-                  : `Liga ${activeTab}`}
-              </span>
+              <span>Liga {activeTab}</span>
               <span>{standings.length} jugadores</span>
+              {lastUpdated && (
+                <span className="text-xs text-slate-600 normal-case tracking-normal">
+                  Actualizado: {formatDateTime(lastUpdated)}
+                </span>
+              )}
             </div>
 
             {loading ? (
@@ -318,24 +296,85 @@ export default function TablaPosiciones() {
               <div
                 ref={listRef}
                 data-testid="standings-list"
-                className="max-h-[58vh] space-y-3 overflow-y-auto pr-1"
+                className="min-h-0 flex-1 rounded-2xl border border-slate-800 overflow-y-auto overflow-x-hidden"
               >
-                {standings.map((row) => {
-                  const isCurrentPlayer = row.playerId === effectivePlayerId
-                  return (
-                    <StandingsRow
-                      key={`${row.playerId}-${row.zoneId}-${row.position}`}
-                      row={row}
-                      isCurrentPlayer={isCurrentPlayer}
-                      showZone={activeTab === 'ZONE' && selectedZoneId === 'ALL'}
-                      rowRef={isCurrentPlayer ? currentRowRef : null}
-                    />
-                  )
-                })}
+                <table className="w-full table-fixed text-xs sm:text-sm">
+                  <colgroup>
+                    <col className="w-[10%]" />
+                    <col className="w-[34%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[9%]" />
+                  </colgroup>
+                  <thead className="sticky top-0 bg-slate-900/95 border-b border-slate-800">
+                    <tr className="text-slate-400 text-xs">
+                      <th className="px-1.5 py-2 text-center sm:px-3 sm:py-3">RNK</th>
+                      <th className="px-1.5 py-2 text-left sm:px-3 sm:py-3">Jugador</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Puntos iniciales (handicap)">AN</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Bonificaciones manuales">AC</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Duelos">⚔️</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]" title="Copa">🏆</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] font-bold sm:px-3 sm:py-3 sm:text-[11px]">TOTAL</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]">G</th>
+                      <th className="px-1.5 py-2 text-center text-[10px] sm:px-3 sm:py-3 sm:text-[11px]">P</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((row) => {
+                      const isCurrentPlayer = row.playerId === effectivePlayerId
+                      return (
+                        <StandingsRow
+                          key={`${row.playerId}-${row.zoneId}-${row.position}`}
+                          row={row}
+                          isCurrentPlayer={isCurrentPlayer}
+                          showZone={false}
+                          rowRef={isCurrentPlayer ? currentRowRef : null}
+                        />
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>
         </div>
+
+        {isFilterOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 px-4 py-8"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filtros de tabla"
+            onClick={() => setIsFilterOpen(false)}
+          >
+            <div
+              className="mx-auto max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-4"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">Filtros</p>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterOpen(false)}
+                  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-slate-100"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {zones.length > 0 && (
+                  <ZoneSelect zones={zones} selectedZoneId={selectedZoneId} onChange={setSelectedZoneId} />
+                )}
+                <ViewTabs activeTab={activeTab} onChange={setActiveTab} />
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <BottomNav />
