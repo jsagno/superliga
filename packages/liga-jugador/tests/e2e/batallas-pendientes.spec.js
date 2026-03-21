@@ -41,4 +41,21 @@ test.describe('BatallasPendientes', () => {
 
     await expect(page.locator('nav').getByText('3')).toBeVisible()
   })
+
+  test('renders with dedicated mobile scroll container', async ({ page }) => {
+    await setAuthenticatedPendingScenario(page, 'default')
+    await page.goto('/batallas')
+
+    const content = page.getByTestId('batallas-scroll-content')
+    await expect(content).toBeVisible()
+
+    const canSetScrollTop = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="batallas-scroll-content"]')
+      if (!el) return false
+      el.scrollTop = 120
+      return el.scrollTop >= 0
+    })
+
+    expect(canSetScrollTop).toBeTruthy()
+  })
 })

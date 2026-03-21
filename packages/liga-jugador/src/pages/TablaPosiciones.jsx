@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Filter, RefreshCw } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileProtectedLayout from '../components/MobileProtectedLayout.jsx'
 import StandingsRow from '../components/StandingsRow.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 import {
@@ -101,7 +102,7 @@ function ErrorState({ onRetry }) {
   )
 }
 
-function EmptyState({ activeTab, selectedZoneName }) {
+function EmptyState() {
   const message = 'No hay jugadores en esta liga'
 
   return (
@@ -127,7 +128,6 @@ export default function TablaPosiciones() {
   const { effectivePlayerId } = usePlayerAuth()
   const [seasons, setSeasons] = useState([])
   const [zones, setZones] = useState([])
-  const [playerContext, setPlayerContext] = useState(null)
   const [standings, setStandings] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
   const [selectedZoneId, setSelectedZoneId] = useState('')
@@ -188,8 +188,6 @@ export default function TablaPosiciones() {
       if (latestRequestRef.current !== requestId) return
 
       setZones(zoneRows)
-      setPlayerContext(context)
-
       let effectiveZoneId = selectedZoneId
       if (!effectiveZoneId && context?.zoneId) {
         effectiveZoneId = context.zoneId
@@ -240,19 +238,14 @@ export default function TablaPosiciones() {
     [seasons, selectedSeasonId],
   )
 
-  const selectedZoneName = useMemo(() => {
-    if (!selectedZoneId) return null
-    return zones.find((zone) => zone.zoneId === selectedZoneId)?.name ?? null
-  }, [selectedZoneId, zones])
-
   const lastUpdated = useMemo(() => {
     const zoneId = selectedZoneId
     return zones.find((z) => z.zoneId === zoneId)?.lastSnapshotAt ?? null
   }, [zones, selectedZoneId])
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-gray-950 text-slate-200">
-      <main className="mx-auto flex h-full max-w-md flex-col px-4 pb-24 pt-4">
+    <MobileProtectedLayout nav={<BottomNav />}>
+      <div className="flex min-h-0 flex-1 flex-col" data-testid="tabla-page-scroll-root">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
@@ -291,7 +284,7 @@ export default function TablaPosiciones() {
             ) : error ? (
               <ErrorState onRetry={loadStandings} />
             ) : standings.length === 0 ? (
-              <EmptyState activeTab={activeTab} selectedZoneName={selectedZoneName} />
+              <EmptyState />
             ) : (
               <div
                 ref={listRef}
@@ -375,9 +368,7 @@ export default function TablaPosiciones() {
             </div>
           </div>
         )}
-      </main>
-
-      <BottomNav />
-    </div>
+      </div>
+    </MobileProtectedLayout>
   )
 }

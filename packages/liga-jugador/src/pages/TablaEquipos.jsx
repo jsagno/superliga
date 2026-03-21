@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Crown, Minus, TrendingDown, TrendingUp, Users } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileProtectedLayout from '../components/MobileProtectedLayout.jsx'
 import TeamStandingsRow from '../components/TeamStandingsRow.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
 import {
@@ -185,8 +186,8 @@ export default function TablaEquipos() {
   const selectedZoneName = zones.find((zone) => zone.zoneId === selectedZoneId)?.name ?? 'Zona'
 
   return (
-    <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
-      <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-4">
+    <MobileProtectedLayout nav={<BottomNav />}>
+      <div className="flex min-h-0 flex-1 flex-col" data-testid="tabla-equipos-scroll-root">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
@@ -203,7 +204,7 @@ export default function TablaEquipos() {
           </div>
         </header>
 
-        <div className="space-y-4">
+        <div data-testid="tabla-equipos-scroll-content" className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
           <ZoneTabs zones={zones} selectedZoneId={selectedZoneId} onSelect={setSelectedZoneId} />
 
           {loading ? (
@@ -271,9 +272,7 @@ export default function TablaEquipos() {
             </>
           )}
         </div>
-      </main>
-
-      <BottomNav />
-    </div>
+      </div>
+    </MobileProtectedLayout>
   )
 }

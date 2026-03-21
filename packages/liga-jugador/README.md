@@ -69,6 +69,23 @@ npm run dev
 
 ---
 
+## Mobile Layout Pattern
+
+Protected mobile screens in `liga-jugador` should use `MobileProtectedLayout` to avoid double scroll issues:
+
+- Root uses `h-[100dvh]` + `overflow-hidden`.
+- Main content uses `min-h-0` and exactly one intended scroll container (`overflow-y-auto`).
+- `BottomNav` stays fixed, while each page controls content scroll only inside its primary content area.
+
+Pages currently aligned with this pattern:
+
+- `/tabla`
+- `/tabla/equipos`
+- `/batallas`
+- `/historial`
+
+---
+
 ## Project Structure
 
 ```
