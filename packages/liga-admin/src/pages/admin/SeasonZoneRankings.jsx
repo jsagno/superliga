@@ -178,6 +178,12 @@ export default function SeasonZoneRankings() {
     );
   }
 
+  function autoAssignLeagues() {
+    setPlayers(prev =>
+      prev.map((p, i) => ({ ...p, league: inferLeague(i + 1) }))
+    );
+  }
+
   function inferLeague(position) {
     if (position <= 6) return 'A';
     if (position <= 12) return 'B';
@@ -251,6 +257,15 @@ export default function SeasonZoneRankings() {
             {season?.description} - {zone?.name}
           </p>
         </div>
+
+        <button
+          onClick={autoAssignLeagues}
+          disabled={players.length === 0}
+          title="Asigna Liga A a las posiciones 1-6, B a 7-12, C a 13+"
+          className="rounded-xl px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 transition font-semibold text-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Auto-asignar Ligas
+        </button>
 
         <button
           onClick={saveRankings}
