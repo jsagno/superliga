@@ -3,8 +3,11 @@ import json
 import time
 import hashlib
 import logging
+import importlib.util
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone, date
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -1426,7 +1429,54 @@ def assign_player_ids(round_players_rows: List[Dict[str, Any]], tag_to_player_id
 # -----------------------------
 # Main cron flow
 # -----------------------------
-def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict[int, Dict[str, Any]]) -> None:
+CYCLE_INTERVAL_SECONDS = 30 * 60
+_standings_module: Optional[Any] = None
+
+
+def _load_standings_module() -> Any:
+    global _standings_module
+
+    if _standings_module is not None:
+        return _standings_module
+
+    standings_path = Path(__file__).resolve().parents[1] / "standings-cron" / "standings_cron.py"
+    spec = importlib.util.spec_from_file_location("liga_standings_cron", standings_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load standings cron module from {standings_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    _standings_module = module
+    return module
+
+
+def run_standings_once_from_sync(sync_cfg: Config) -> Dict[str, int]:
+    standings_module = _load_standings_module()
+
+    previous_url = os.environ.get("SUPABASE_URL")
+    previous_key = os.environ.get("SUPABASE_KEY")
+
+    os.environ["SUPABASE_URL"] = sync_cfg.supabase_url
+    os.environ["SUPABASE_KEY"] = sync_cfg.supabase_key
+
+    try:
+        standings_cfg = standings_module.load_config()
+        standings_sb = create_client(standings_cfg.supabase_url, standings_cfg.supabase_key)
+        return standings_module.run_standings_once(standings_cfg, standings_sb)
+    finally:
+        if previous_url is None:
+            os.environ.pop("SUPABASE_URL", None)
+        else:
+            os.environ["SUPABASE_URL"] = previous_url
+
+        if previous_key is None:
+            os.environ.pop("SUPABASE_KEY", None)
+        else:
+            os.environ["SUPABASE_KEY"] = previous_key
+
+
+def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict[int, Dict[str, Any]]) -> bool:
     """Run a single sync cycle."""
     global _admin_user_cache
     
@@ -1441,7 +1491,7 @@ def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict
     season_config = get_active_season(sb)
     if not season_config:
         logging.error("Cannot proceed: no active season configuration found")
-        return
+        return False
     
     admin_user_id = get_cached_admin_user(sb)
     if not admin_user_id:
@@ -1474,6 +1524,7 @@ def run_sync_once(cfg: Config, sb: Client, api: 'SupercellApi', card_cache: Dict
             logging.error(f"Unexpected error syncing battlelog for {tag}: {e}", exc_info=True)
     
     logging.info(f"=== CRON COMPLETE: Sync finished - New: {total_new}, Skipped: {total_skipped}, Incomplete: {total_incomplete}, Daily Linked: {total_daily_linked} ===")
+    return True
 
 
 def main() -> None:
@@ -1489,23 +1540,53 @@ def main() -> None:
 
     card_cache = load_card_cache(sb)
     
-    logging.info("Starting continuous sync - running every 30 minutes")
+    logging.info("Starting continuous sync - running sync + standings every 30 minutes")
     
     while True:
+        cycle_started_at = time.perf_counter()
         try:
-            run_sync_once(cfg, sb, api, card_cache)
+            logging.info("=== CRON CYCLE START ===")
+
+            sync_started_at = time.perf_counter()
+            logging.info("--- PHASE START: sync ---")
+            sync_completed = run_sync_once(cfg, sb, api, card_cache)
+            sync_duration = time.perf_counter() - sync_started_at
+            logging.info(f"--- PHASE END: sync ({sync_duration:.2f}s) ---")
+
             # Reload card cache after each sync
             card_cache = load_card_cache(sb)
+
+            if sync_completed:
+                try:
+                    standings_started_at = time.perf_counter()
+                    logging.info("--- PHASE START: standings ---")
+                    standings_result = run_standings_once_from_sync(cfg)
+                    standings_duration = time.perf_counter() - standings_started_at
+                    logging.info(
+                        "--- PHASE END: standings (%.2fs) - Seasons: %s, Ledger rows: %s, Snapshot rows: %s ---",
+                        standings_duration,
+                        standings_result.get("season_count", 0),
+                        standings_result.get("ledger_rows", 0),
+                        standings_result.get("snapshot_rows", 0),
+                    )
+                except Exception as standings_error:
+                    logging.error(f"Standings phase failed: {standings_error}", exc_info=True)
+            else:
+                logging.warning("Skipping standings phase because sync did not complete successfully")
+
+            cycle_duration = time.perf_counter() - cycle_started_at
+            logging.info(f"=== CRON CYCLE COMPLETE ({cycle_duration:.2f}s) ===")
             
-            logging.info("Waiting 30 minutes before next sync...")
-            time.sleep(30 * 60)  # Sleep for 30 minutes
+            logging.info("Waiting 30 minutes before next cycle...")
+            time.sleep(CYCLE_INTERVAL_SECONDS)
         except KeyboardInterrupt:
             logging.info("Sync stopped by user")
             break
         except Exception as e:
-            logging.error(f"Error during sync: {e}", exc_info=True)
+            logging.error(f"Fatal error during sync cycle: {e}", exc_info=True)
+            logging.warning("Skipping standings for this cycle because sync did not complete")
             logging.info("Waiting 30 minutes before retry...")
-            time.sleep(30 * 60)
+            time.sleep(CYCLE_INTERVAL_SECONDS)
 
 
 def run_repairs(sb: Client, api: SupercellApi, cfg: Config, card_cache: Dict[int, Dict[str, Any]]) -> None:

@@ -23,10 +23,10 @@ class Config:
 
 def load_config() -> Config:
     dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
-    load_dotenv(dotenv_path=dotenv_path, override=True)
+    load_dotenv(dotenv_path=dotenv_path, override=False)
 
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
     if not url or not key:
         raise SystemExit(
@@ -506,15 +506,10 @@ def write_snapshot(sb: Client, season_id: str, zone_id: str, computed_rows: List
 # Main loop
 # ──────────────────────────────────────────────────────────────
 
-def main() -> None:
-    cfg = load_config()
-    setup_logging(cfg)
-
-    logging.info("=" * 60)
-    logging.info("Standings cron started")
-    logging.info("=" * 60)
-
-    sb = create_client(cfg.supabase_url, cfg.supabase_key)
+def run_standings_once(cfg: Config, sb: Optional[Client] = None) -> Dict[str, int]:
+    owns_client = sb is None
+    if owns_client:
+        sb = create_client(cfg.supabase_url, cfg.supabase_key)
 
     # Fetch active seasons
     seasons_resp = sb.table("season").select("season_id, description").eq("status", "ACTIVE").execute()
@@ -522,7 +517,11 @@ def main() -> None:
 
     if not seasons:
         logging.info("No active seasons found. Exiting.")
-        return
+        return {
+            "season_count": 0,
+            "ledger_rows": 0,
+            "snapshot_rows": 0,
+        }
 
     total_ledger_rows = 0
     total_snapshot_rows = 0
@@ -565,6 +564,23 @@ def main() -> None:
     logging.info(f"  Ledger rows upserted : {total_ledger_rows}")
     logging.info(f"  Snapshot rows written: {total_snapshot_rows}")
     logging.info("=" * 60)
+
+    return {
+        "season_count": len(seasons),
+        "ledger_rows": total_ledger_rows,
+        "snapshot_rows": total_snapshot_rows,
+    }
+
+
+def main() -> None:
+    cfg = load_config()
+    setup_logging(cfg)
+
+    logging.info("=" * 60)
+    logging.info("Standings cron started")
+    logging.info("=" * 60)
+
+    run_standings_once(cfg)
 
 
 if __name__ == "__main__":
