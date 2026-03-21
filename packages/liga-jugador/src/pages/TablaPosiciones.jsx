@@ -317,20 +317,37 @@ export default function TablaPosiciones() {
               <div
                 ref={listRef}
                 data-testid="standings-list"
-                className="max-h-[58vh] space-y-3 overflow-y-auto pr-1"
+                className="max-h-[58vh] border border-slate-800 rounded-2xl overflow-y-auto"
               >
-                {standings.map((row) => {
-                  const isCurrentPlayer = row.playerId === effectivePlayerId
-                  return (
-                    <StandingsRow
-                      key={`${row.playerId}-${row.zoneId}-${row.position}`}
-                      row={row}
-                      isCurrentPlayer={isCurrentPlayer}
-                      showZone={false}
-                      rowRef={isCurrentPlayer ? currentRowRef : null}
-                    />
-                  )
-                })}
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-slate-900/95 border-b border-slate-800">
+                    <tr className="text-slate-400 text-xs">
+                      <th className="px-3 py-3 text-center w-10">RNK</th>
+                      <th className="px-3 py-3 text-left">Jugador</th>
+                      <th className="px-3 py-3 text-center text-[11px]" title="Puntos iniciales (handicap)">AN</th>
+                      <th className="px-3 py-3 text-center text-[11px]" title="Bonificaciones manuales">AC</th>
+                      <th className="px-3 py-3 text-center text-[11px]" title="Duelos">⚔️</th>
+                      <th className="px-3 py-3 text-center text-[11px]" title="Copa">🏆</th>
+                      <th className="px-3 py-3 text-center text-[11px] font-bold">TOTAL</th>
+                      <th className="px-3 py-3 text-center text-[11px]">G</th>
+                      <th className="px-3 py-3 text-center text-[11px]">P</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((row) => {
+                      const isCurrentPlayer = row.playerId === effectivePlayerId
+                      return (
+                        <StandingsRow
+                          key={`${row.playerId}-${row.zoneId}-${row.position}`}
+                          row={row}
+                          isCurrentPlayer={isCurrentPlayer}
+                          showZone={false}
+                          rowRef={isCurrentPlayer ? currentRowRef : null}
+                        />
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>
