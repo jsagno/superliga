@@ -1112,57 +1112,115 @@ export default function BattlesHistory() {
         
         // Apply RES (card restriction) filter if needed
         if (resFilter === "withRes" && ids.length > 0 && seasonsCatalog.length > 0) {
-          // Get battle times for filtering
           const { data: battleTimes, error } = await supabase
             .from("battle")
             .select("battle_id,battle_time,api_battle_type,round_count")
             .in("battle_id", ids);
-          
+
           if (!error && battleTimes) {
-            const filteredIds = [];
-            
-            for (const battle of battleTimes) {
-              // Only check war duels with multiple rounds
-              if (battle.round_count > 1 && (battle.api_battle_type === 'war' || battle.api_battle_type?.startsWith('riverRace'))) {
-                // Get rounds for this battle to find participating players
-                const { data: br, error: e1 } = await supabase
-                  .from("battle_round")
-                  .select("battle_round_id")
-                  .eq("battle_id", battle.battle_id);
-                
-                if (e1 || !br || br.length === 0) continue;
-                
-                const roundIds = br.map(r => r.battle_round_id);
-                
-                const { data: rp, error: e2 } = await supabase
+            const eligibleBattles = battleTimes.filter(
+              (battle) =>
+                battle.round_count > 1 &&
+                (battle.api_battle_type === "war" || battle.api_battle_type?.startsWith("riverRace")),
+            );
+
+            if (eligibleBattles.length === 0) {
+              ids = [];
+            } else {
+              const eligibleBattleIds = eligibleBattles.map((battle) => battle.battle_id);
+
+              const { data: br, error: brError } = await supabase
+                .from("battle_round")
+                .select("battle_round_id,battle_id")
+                .in("battle_id", eligibleBattleIds);
+
+              if (brError || !br || br.length === 0) {
+                ids = [];
+              } else {
+                const roundIds = br.map((row) => row.battle_round_id);
+
+                const { data: rp, error: rpError } = await supabase
                   .from("battle_round_player")
-                  .select("player_id")
+                  .select("battle_round_id,player_id")
                   .in("battle_round_id", roundIds);
-                
-                if (e2 || !rp || rp.length === 0) continue;
-                
-                const playerIds = [...new Set(rp.map(r => r.player_id).filter(Boolean))];
-                
-                // Check if any player in this battle has restrictions
-                let matchesFilter = false;
-                const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
-                if (!battleSeason) continue;
-                
-                for (const pid of playerIds) {
-                  const config = await fetchPlayerRestrictionsConfig(pid, battleSeason.season_id);
-                  if (config && config.restrictedCardIds && config.restrictedCardIds.length > 0) {
-                    matchesFilter = true;
-                    break;
+
+                if (rpError || !rp || rp.length === 0) {
+                  ids = [];
+                } else {
+                  const battleByRoundId = new Map(br.map((row) => [row.battle_round_id, row.battle_id]));
+                  const playersByBattleId = new Map();
+
+                  for (const row of rp) {
+                    const battleId = battleByRoundId.get(row.battle_round_id);
+                    if (!battleId || !row.player_id) continue;
+                    if (!playersByBattleId.has(battleId)) {
+                      playersByBattleId.set(battleId, new Set());
+                    }
+                    playersByBattleId.get(battleId).add(row.player_id);
                   }
-                }
-                
-                if (matchesFilter) {
-                  filteredIds.push(battle.battle_id);
+
+                  const seasonByBattleId = new Map();
+                  const seasonIds = new Set();
+                  const allPlayers = new Set();
+
+                  for (const battle of eligibleBattles) {
+                    const battleSeason = resolveBattleSeason(battle.battle_time, seasonsCatalog);
+                    if (!battleSeason?.season_id) continue;
+                    seasonByBattleId.set(battle.battle_id, battleSeason.season_id);
+                    seasonIds.add(battleSeason.season_id);
+
+                    const battlePlayers = playersByBattleId.get(battle.battle_id);
+                    if (!battlePlayers) continue;
+                    for (const pid of battlePlayers) {
+                      allPlayers.add(pid);
+                    }
+                  }
+
+                  if (seasonIds.size === 0 || allPlayers.size === 0) {
+                    ids = [];
+                  } else {
+                    const { data: restrictions, error: restrictionsError } = await supabase
+                      .from("season_card_restriction")
+                      .select("season_id,player_id")
+                      .in("season_id", Array.from(seasonIds))
+                      .in("player_id", Array.from(allPlayers));
+
+                    if (restrictionsError || !restrictions || restrictions.length === 0) {
+                      ids = [];
+                    } else {
+                      const restrictedPlayersBySeason = new Map();
+                      for (const row of restrictions) {
+                        if (!row?.season_id || !row?.player_id) continue;
+                        if (!restrictedPlayersBySeason.has(row.season_id)) {
+                          restrictedPlayersBySeason.set(row.season_id, new Set());
+                        }
+                        restrictedPlayersBySeason.get(row.season_id).add(row.player_id);
+                      }
+
+                      ids = eligibleBattles
+                        .filter((battle) => {
+                          const seasonId = seasonByBattleId.get(battle.battle_id);
+                          const restrictedPlayers = seasonId ? restrictedPlayersBySeason.get(seasonId) : null;
+                          if (!restrictedPlayers || restrictedPlayers.size === 0) return false;
+
+                          if (playerId) {
+                            // When a player is selected, "Solo con RES" should apply to that player.
+                            return restrictedPlayers.has(playerId);
+                          }
+
+                          const battlePlayers = playersByBattleId.get(battle.battle_id);
+                          if (!battlePlayers || battlePlayers.size === 0) return false;
+                          for (const pid of battlePlayers) {
+                            if (restrictedPlayers.has(pid)) return true;
+                          }
+                          return false;
+                        })
+                        .map((battle) => battle.battle_id);
+                    }
+                  }
                 }
               }
             }
-            
-            ids = filteredIds;
           }
         }
         
