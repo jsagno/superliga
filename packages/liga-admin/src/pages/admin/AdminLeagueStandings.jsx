@@ -37,6 +37,7 @@ export default function AdminLeagueStandings() {
   const [snapshots, setSnapshots] = useState([]);
   const [ledgerBreakdown, setLedgerBreakdown] = useState({});
   const [initialPoints, setInitialPoints] = useState({});
+  const [teamsByPlayer, setTeamsByPlayer] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeLeague, setActiveLeague] = useState("A");
 
@@ -56,7 +57,7 @@ export default function AdminLeagueStandings() {
           .single(),
         supabase
           .from("player_standings_snapshot")
-          .select("player_id, scope, league, position, points_total, wins, losses, delta_position, player:player!inner(nick, name)")
+          .select("player_id, scope, league, position, points_total, wins, losses, delta_position, player:player!inner(nick, name), zone_id")
           .eq("season_id", seasonId)
           .eq("zone_id", zoneId)
           .eq("scope", "LEAGUE")
@@ -82,7 +83,7 @@ export default function AdminLeagueStandings() {
             .in("player_id", playerIds),
           supabase
             .from("season_zone_team_player")
-            .select("player_id, initial_points")
+            .select("player_id, initial_points, team:team_id(team_id, name, logo)")
             .eq("zone_id", zoneId)
             .in("player_id", playerIds),
         ]);
@@ -98,10 +99,15 @@ export default function AdminLeagueStandings() {
 
         // Map initial_points per player
         const ipMap = {};
+        const teamsMap = {};
         for (const row of (sztp.data || [])) {
           ipMap[row.player_id] = row.initial_points ?? 0;
+          if (row.team) {
+            teamsMap[row.player_id] = row.team;
+          }
         }
         setInitialPoints(ipMap);
+        setTeamsByPlayer(teamsMap);
       }
     } catch (err) {
       console.error("Error loading standings:", err);
@@ -216,7 +222,21 @@ export default function AdminLeagueStandings() {
                         <td className="px-3 py-3 text-center">
                           <DeltaBadge delta={row.delta_position} />
                         </td>
-                        <td className="px-3 py-3 font-semibold">{nick}</td>
+                        <td className="px-3 py-3 font-semibold">
+                          <div className="flex items-center gap-2">
+                            {teamsByPlayer[row.player_id]?.logo ? (
+                              <img
+                                src={teamsByPlayer[row.player_id].logo}
+                                alt={teamsByPlayer[row.player_id].name || 'Team'}
+                                className="h-6 w-6 rounded-full object-cover"
+                                title={teamsByPlayer[row.player_id].name}
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-white/10" />
+                            )}
+                            <span>{nick}</span>
+                          </div>
+                        </td>
                         <td className="px-3 py-3 text-center text-white/70">{an}</td>
                         <td className="px-3 py-3 text-center text-white/70">{ac}</td>
                         <td className="px-3 py-3 text-center text-white/70">{duels}</td>

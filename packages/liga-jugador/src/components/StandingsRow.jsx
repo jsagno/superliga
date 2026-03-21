@@ -51,9 +51,18 @@ export default function StandingsRow({ row, isCurrentPlayer = false, showZone = 
         <span className="text-lg font-bold text-slate-100">{row.position}</span>
       </div>
 
-      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-slate-100 ring-1 ring-slate-700">
-        {getAvatarLabel(row)}
-      </div>
+      {row.teamLogo ? (
+        <img
+          src={row.teamLogo}
+          alt={row.teamName ?? 'Team'}
+          className="h-11 w-11 flex-shrink-0 rounded-full object-cover ring-1 ring-slate-700"
+          title={row.teamName ?? 'Team'}
+        />
+      ) : (
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-slate-100 ring-1 ring-slate-700">
+          {getAvatarLabel(row)}
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

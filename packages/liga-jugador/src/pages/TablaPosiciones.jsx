@@ -296,13 +296,6 @@ export default function TablaPosiciones() {
 
           <ViewTabs activeTab={activeTab} onChange={setActiveTab} />
 
-          {playerContext && (
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
-              <span className="font-semibold text-slate-100">Tu contexto actual:</span>{' '}
-              {playerContext.zoneName ?? 'Zona'} · Liga {playerContext.league ?? '-'}
-            </div>
-          )}
-
           <section>
             <div className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
               <span>Liga {activeTab}</span>
