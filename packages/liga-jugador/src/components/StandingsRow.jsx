@@ -1,11 +1,6 @@
 import React from 'react'
 
-function getAvatarLabel(row) {
-  const source = row.nick ?? row.name ?? 'J'
-  return source.trim().charAt(0).toUpperCase()
-}
-
-export default function StandingsRow({ row, isCurrentPlayer = false, showZone = false, rowRef = null }) {
+export default function StandingsRow({ row, isCurrentPlayer = false, showZone: _showZone = false, rowRef = null }) {
   const displayName = row.nick ?? row.name ?? 'Jugador'
 
   return (

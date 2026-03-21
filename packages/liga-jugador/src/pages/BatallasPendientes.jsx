@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bell, LayoutGrid, RefreshCw, Swords, Trophy } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileProtectedLayout from '../components/MobileProtectedLayout.jsx'
 import PendingBattleCard from '../components/PendingBattleCard.jsx'
 import VincularBatallaPanel from '../components/VincularBatallaPanel.jsx'
 import { usePlayerAuth } from '../context/PlayerAuthContext.jsx'
@@ -68,8 +69,8 @@ export default function BatallasPendientes() {
   }, [activeFilter])
 
   return (
-    <div className="min-h-screen bg-gray-950 text-slate-200 pb-safe">
-      <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-4">
+    <MobileProtectedLayout nav={<BottomNav pendingCount={pendingCount} />}>
+      <div className="flex min-h-0 flex-1 flex-col" data-testid="batallas-scroll-root">
         <header className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Liga Interna</p>
@@ -119,39 +120,39 @@ export default function BatallasPendientes() {
           })}
         </section>
 
-        {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="h-24 animate-pulse rounded-2xl border border-slate-800 bg-slate-900" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 px-5 py-8 text-center">
-            <p className="text-base font-semibold text-slate-100">No se pudo cargar la lista</p>
-            <p className="mt-2 text-sm text-slate-400">Verifica tu conexión e intenta nuevamente.</p>
-            <button
-              type="button"
-              onClick={load}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-400"
-            >
-              <RefreshCw className="h-4 w-4" strokeWidth={2} />
-              Reintentar
-            </button>
-          </div>
-        ) : matches.length === 0 ? (
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-5 py-10 text-center text-sm text-slate-400">
-            No tienes batallas pendientes 🎉
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {matches.map((match) => (
-              <PendingBattleCard key={match.scheduledMatchId} match={match} onLink={handleOpenLinkPanel} />
-            ))}
-          </div>
-        )}
-      </main>
-
-      <BottomNav pendingCount={pendingCount} />
+        <div data-testid="batallas-scroll-content" className="min-h-0 flex-1 overflow-y-auto pb-2">
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="h-24 animate-pulse rounded-2xl border border-slate-800 bg-slate-900" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 px-5 py-8 text-center">
+              <p className="text-base font-semibold text-slate-100">No se pudo cargar la lista</p>
+              <p className="mt-2 text-sm text-slate-400">Verifica tu conexión e intenta nuevamente.</p>
+              <button
+                type="button"
+                onClick={load}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-400"
+              >
+                <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                Reintentar
+              </button>
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 px-5 py-10 text-center text-sm text-slate-400">
+              No tienes batallas pendientes
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {matches.map((match) => (
+                <PendingBattleCard key={match.scheduledMatchId} match={match} onLink={handleOpenLinkPanel} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <VincularBatallaPanel
         open={Boolean(selectedMatchForLink)}
@@ -160,6 +161,6 @@ export default function BatallasPendientes() {
         appUserId={appUserId}
         onLinked={handleLinked}
       />
-    </div>
+    </MobileProtectedLayout>
   )
 }
