@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
+import PlayerMultiSelect from "../../components/PlayerMultiSelect";
 
 function formatDateTime(isoStr) {
   if (!isoStr) return "—";
@@ -29,7 +31,7 @@ export default function SeasonBonusPoints() {
   const [saving, setSaving] = useState(false);
 
   // Form state
-  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [points, setPoints] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -71,7 +73,7 @@ export default function SeasonBonusPoints() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!selectedPlayerId || points === "") return;
+    if (!selectedPlayer || points === "") return;
 
     const parsedPoints = parseInt(points, 10);
     if (isNaN(parsedPoints)) return;
@@ -82,9 +84,9 @@ export default function SeasonBonusPoints() {
         scope: "PLAYER",
         season_id: seasonId,
         zone_id: zoneId,
-        player_id: selectedPlayerId,
+        player_id: selectedPlayer.player_id,
         source_type: "LIGA_BONUS",
-        source_id: `manual-${Date.now()}`,
+        source_id: uuidv4(),
         sub_key: "bonus",
         points: parsedPoints,
         notes: notes.trim() || null,
@@ -94,7 +96,7 @@ export default function SeasonBonusPoints() {
 
       if (error) throw error;
 
-      setSelectedPlayerId("");
+      setSelectedPlayer(null);
       setPoints("");
       setNotes("");
       await loadData();
@@ -172,19 +174,16 @@ export default function SeasonBonusPoints() {
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-48">
               <label className="block text-xs text-white/60 mb-1">Jugador</label>
-              <select
-                value={selectedPlayerId}
-                onChange={e => setSelectedPlayerId(e.target.value)}
-                required
-                className="w-full rounded-xl bg-white/10 border border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-              >
-                <option value="">Seleccionar jugador...</option>
-                {players.map(p => (
-                  <option key={p.player_id} value={p.player_id}>
-                    {p.player?.nick || p.player?.name} (Liga {p.league})
-                  </option>
-                ))}
-              </select>
+              <PlayerMultiSelect
+                seasonId={seasonId}
+                selectedPlayers={selectedPlayer ? [selectedPlayer] : []}
+                onPlayerAdd={player => setSelectedPlayer(player)}
+                onPlayerRemove={() => setSelectedPlayer(null)}
+                onClearAll={() => setSelectedPlayer(null)}
+                zoneFilter={zoneId}
+                maxSelection={1}
+                excludePlayerIds={[]}
+              />
             </div>
 
             <div className="w-32">
@@ -214,7 +213,7 @@ export default function SeasonBonusPoints() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={saving || !selectedPlayerId || points === ""}
+              disabled={saving || !selectedPlayer || points === ""}
               className="rounded-xl px-5 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 transition font-semibold text-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Guardando..." : "Guardar bonificación"}
